@@ -1,0 +1,422 @@
+{
+  "id": "internship-completion-certificate",
+  "label": "Internship Completion Certificate",
+  "description": "The formal proof of completion, including your start and end dates, role, and an authorized signature.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "recipient": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "title": "Name", "x-column": 1, "x-order": 1 },
+          "role": { "type": "string", "title": "Role", "x-column": 1, "x-order": 2 },
+          "address": { "type": "string", "title": "Address", "x-column": 2, "x-order": 3 },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+            "title": "Email",
+            "x-column": 1,
+            "x-order": 4
+          },
+          "phone": { "type": "string", "title": "Phone", "x-column": 1, "x-order": 5 }
+        },
+        "required": ["name", "role", "address", "email", "phone"],
+        "additionalProperties": false,
+        "title": "Recipient",
+        "x-section": "Recipient",
+        "x-column": 1,
+        "x-order": 1
+      },
+      "scopeOfWork": { "type": "string", "title": "Scope Of Work", "x-column": 1, "x-order": 2 },
+      "startDate": {
+        "type": "string",
+        "format": "date",
+        "title": "Start Date",
+        "x-column": 1,
+        "x-order": 3
+      },
+      "endDate": {
+        "type": "string",
+        "format": "date",
+        "title": "End Date",
+        "x-column": 1,
+        "x-order": 4
+      },
+      "organization": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "title": "Id", "x-column": 1, "x-order": 1 },
+          "name": { "type": "string", "title": "Name", "x-column": 1, "x-order": 2 },
+          "legalName": { "type": "string", "title": "Legal Name", "x-column": 1, "x-order": 3 },
+          "entityType": {
+            "type": "string",
+            "enum": ["LLP", "Private Limited", "Proprietorship"],
+            "title": "Entity Type",
+            "x-column": 1,
+            "x-order": 4
+          },
+          "tradeRelationship": {
+            "type": "string",
+            "enum": [
+              "Primary",
+              "Trading As",
+              "Operating Division",
+              "Wholly-Owned Subsidiary",
+              "Special Purpose Vehicle"
+            ],
+            "title": "Trade Relationship",
+            "x-column": 1,
+            "x-order": 5
+          },
+          "gstin": { "type": "string", "title": "Gstin", "x-column": 1, "x-order": 6 },
+          "pan": { "type": "string", "title": "Pan", "x-column": 1, "x-order": 7 },
+          "address": { "type": "string", "title": "Address", "x-column": 2, "x-order": 8 },
+          "foundedYear": { "type": "number", "title": "Founded Year", "x-column": 1, "x-order": 9 },
+          "accountDetails": {
+            "type": "object",
+            "properties": {
+              "accountName": {
+                "type": "string",
+                "title": "Account Name",
+                "x-column": 1,
+                "x-order": 1
+              },
+              "accountNumber": {
+                "type": "number",
+                "title": "Account Number",
+                "x-column": 1,
+                "x-order": 2
+              },
+              "bankName": { "type": "string", "title": "Bank Name", "x-column": 1, "x-order": 3 },
+              "ifscCode": { "type": "string", "title": "Ifsc Code", "x-column": 1, "x-order": 4 }
+            },
+            "required": ["accountName", "accountNumber", "bankName", "ifscCode"],
+            "additionalProperties": false,
+            "title": "Account Details",
+            "x-column": 1,
+            "x-order": 10
+          },
+          "branding": {
+            "type": "object",
+            "properties": {
+              "logo": { "type": "string", "title": "Logo", "x-column": 1, "x-order": 1 },
+              "color": {
+                "type": "object",
+                "properties": {
+                  "primary": { "type": "string", "title": "Primary", "x-column": 1, "x-order": 1 },
+                  "accent": { "type": "string", "title": "Accent", "x-column": 1, "x-order": 2 }
+                },
+                "required": ["primary", "accent"],
+                "additionalProperties": false,
+                "title": "Color",
+                "x-column": 1,
+                "x-order": 2
+              },
+              "font": { "type": "string", "title": "Font", "x-column": 1, "x-order": 3 }
+            },
+            "required": ["logo", "color", "font"],
+            "additionalProperties": false,
+            "title": "Branding",
+            "x-column": 1,
+            "x-order": 11
+          },
+          "website": { "type": "string", "title": "Website", "x-column": 1, "x-order": 12 },
+          "phone": { "type": "string", "title": "Phone", "x-column": 1, "x-order": 13 },
+          "contactEmail": {
+            "type": "string",
+            "format": "email",
+            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+            "title": "Contact Email",
+            "x-column": 1,
+            "x-order": 14
+          },
+          "billingEmail": {
+            "type": "string",
+            "format": "email",
+            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+            "title": "Billing Email",
+            "x-column": 1,
+            "x-order": 15
+          },
+          "whatsapp": { "type": "string", "title": "Whatsapp", "x-column": 1, "x-order": 16 },
+          "socials": {
+            "type": "object",
+            "propertyNames": {},
+            "additionalProperties": {},
+            "title": "Socials",
+            "x-column": 1,
+            "x-order": 17
+          },
+          "primaryContactId": {
+            "type": "string",
+            "title": "Primary Contact Id",
+            "x-column": 1,
+            "x-order": 18
+          },
+          "organizationMemberIds": {
+            "type": "array",
+            "items": { "type": "string" },
+            "title": "Organization Member Ids",
+            "x-column": 2,
+            "x-order": 19
+          },
+          "createdAt": { "type": "string", "title": "Created At", "x-column": 1, "x-order": 20 },
+          "updatedAt": { "type": "string", "title": "Updated At", "x-column": 1, "x-order": 21 }
+        },
+        "required": [
+          "id",
+          "name",
+          "legalName",
+          "entityType",
+          "tradeRelationship",
+          "address",
+          "foundedYear",
+          "accountDetails",
+          "branding",
+          "contactEmail",
+          "billingEmail",
+          "primaryContactId",
+          "organizationMemberIds",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false,
+        "title": "Organization",
+        "x-section": "Organization",
+        "x-column": 1,
+        "x-order": 5
+      }
+    },
+    "required": ["recipient", "scopeOfWork", "startDate", "endDate", "organization"],
+    "additionalProperties": false
+  },
+  "variables": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "recipient": {
+        "type": "object",
+        "properties": {
+          "name": { "type": "string", "title": "Name", "x-column": 1, "x-order": 1 },
+          "role": { "type": "string", "title": "Role", "x-column": 1, "x-order": 2 },
+          "address": { "type": "string", "title": "Address", "x-column": 2, "x-order": 3 },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+            "title": "Email",
+            "x-column": 1,
+            "x-order": 4
+          },
+          "phone": { "type": "string", "title": "Phone", "x-column": 1, "x-order": 5 }
+        },
+        "required": ["name", "role", "address", "email", "phone"],
+        "additionalProperties": false,
+        "title": "Recipient",
+        "x-section": "Recipient",
+        "x-column": 1,
+        "x-order": 1
+      },
+      "scopeOfWork": { "type": "string", "title": "Scope Of Work", "x-column": 1, "x-order": 2 },
+      "startDate": {
+        "type": "string",
+        "format": "date",
+        "title": "Start Date",
+        "x-column": 1,
+        "x-order": 3
+      },
+      "endDate": {
+        "type": "string",
+        "format": "date",
+        "title": "End Date",
+        "x-column": 1,
+        "x-order": 4
+      },
+      "organization": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "title": "Id", "x-column": 1, "x-order": 1 },
+          "name": { "type": "string", "title": "Name", "x-column": 1, "x-order": 2 },
+          "legalName": { "type": "string", "title": "Legal Name", "x-column": 1, "x-order": 3 },
+          "entityType": {
+            "type": "string",
+            "enum": ["LLP", "Private Limited", "Proprietorship"],
+            "title": "Entity Type",
+            "x-column": 1,
+            "x-order": 4
+          },
+          "tradeRelationship": {
+            "type": "string",
+            "enum": [
+              "Primary",
+              "Trading As",
+              "Operating Division",
+              "Wholly-Owned Subsidiary",
+              "Special Purpose Vehicle"
+            ],
+            "title": "Trade Relationship",
+            "x-column": 1,
+            "x-order": 5
+          },
+          "gstin": { "type": "string", "title": "Gstin", "x-column": 1, "x-order": 6 },
+          "pan": { "type": "string", "title": "Pan", "x-column": 1, "x-order": 7 },
+          "address": { "type": "string", "title": "Address", "x-column": 2, "x-order": 8 },
+          "foundedYear": { "type": "number", "title": "Founded Year", "x-column": 1, "x-order": 9 },
+          "accountDetails": {
+            "type": "object",
+            "properties": {
+              "accountName": {
+                "type": "string",
+                "title": "Account Name",
+                "x-column": 1,
+                "x-order": 1
+              },
+              "accountNumber": {
+                "type": "number",
+                "title": "Account Number",
+                "x-column": 1,
+                "x-order": 2
+              },
+              "bankName": { "type": "string", "title": "Bank Name", "x-column": 1, "x-order": 3 },
+              "ifscCode": { "type": "string", "title": "Ifsc Code", "x-column": 1, "x-order": 4 }
+            },
+            "required": ["accountName", "accountNumber", "bankName", "ifscCode"],
+            "additionalProperties": false,
+            "title": "Account Details",
+            "x-column": 1,
+            "x-order": 10
+          },
+          "branding": {
+            "type": "object",
+            "properties": {
+              "logo": { "type": "string", "title": "Logo", "x-column": 1, "x-order": 1 },
+              "color": {
+                "type": "object",
+                "properties": {
+                  "primary": { "type": "string", "title": "Primary", "x-column": 1, "x-order": 1 },
+                  "accent": { "type": "string", "title": "Accent", "x-column": 1, "x-order": 2 }
+                },
+                "required": ["primary", "accent"],
+                "additionalProperties": false,
+                "title": "Color",
+                "x-column": 1,
+                "x-order": 2
+              },
+              "font": { "type": "string", "title": "Font", "x-column": 1, "x-order": 3 }
+            },
+            "required": ["logo", "color", "font"],
+            "additionalProperties": false,
+            "title": "Branding",
+            "x-column": 1,
+            "x-order": 11
+          },
+          "website": { "type": "string", "title": "Website", "x-column": 1, "x-order": 12 },
+          "phone": { "type": "string", "title": "Phone", "x-column": 1, "x-order": 13 },
+          "contactEmail": {
+            "type": "string",
+            "format": "email",
+            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+            "title": "Contact Email",
+            "x-column": 1,
+            "x-order": 14
+          },
+          "billingEmail": {
+            "type": "string",
+            "format": "email",
+            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+            "title": "Billing Email",
+            "x-column": 1,
+            "x-order": 15
+          },
+          "whatsapp": { "type": "string", "title": "Whatsapp", "x-column": 1, "x-order": 16 },
+          "socials": {
+            "type": "object",
+            "propertyNames": {},
+            "additionalProperties": {},
+            "title": "Socials",
+            "x-column": 1,
+            "x-order": 17
+          },
+          "primaryContactId": {
+            "type": "string",
+            "title": "Primary Contact Id",
+            "x-column": 1,
+            "x-order": 18
+          },
+          "organizationMemberIds": {
+            "type": "array",
+            "items": { "type": "string" },
+            "title": "Organization Member Ids",
+            "x-column": 2,
+            "x-order": 19
+          },
+          "createdAt": { "type": "string", "title": "Created At", "x-column": 1, "x-order": 20 },
+          "updatedAt": { "type": "string", "title": "Updated At", "x-column": 1, "x-order": 21 }
+        },
+        "required": [
+          "id",
+          "name",
+          "legalName",
+          "entityType",
+          "tradeRelationship",
+          "address",
+          "foundedYear",
+          "accountDetails",
+          "branding",
+          "contactEmail",
+          "billingEmail",
+          "primaryContactId",
+          "organizationMemberIds",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false,
+        "title": "Organization",
+        "x-section": "Organization",
+        "x-column": 1,
+        "x-order": 5
+      }
+    },
+    "required": ["recipient", "scopeOfWork", "startDate", "endDate", "organization"],
+    "additionalProperties": false
+  },
+  "signerFields": [
+    {
+      "id": "signer-signature",
+      "type": "SIGNATURE",
+      "signerOrder": 1,
+      "pageIndex": -1,
+      "x": 380,
+      "y": 180,
+      "width": 150,
+      "height": 40,
+      "required": true
+    },
+    {
+      "id": "signer-title",
+      "type": "TEXT",
+      "signerOrder": 1,
+      "pageIndex": -1,
+      "x": 380,
+      "y": 140,
+      "width": 150,
+      "height": 30,
+      "fontSize": 12,
+      "required": true
+    },
+    {
+      "id": "date-of-issue",
+      "type": "DATE",
+      "signerOrder": 1,
+      "pageIndex": -1,
+      "x": 65,
+      "y": 140,
+      "width": 150,
+      "height": 30,
+      "fontSize": 12,
+      "required": true
+    }
+  ]
+}

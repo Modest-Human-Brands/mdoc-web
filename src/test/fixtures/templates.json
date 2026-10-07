@@ -1,0 +1,27 @@
+[
+  {
+    "id": "retainer-contract",
+    "label": "Retainer Contract",
+    "description": "A recurring monthly engagement agreement for marketing or development work, billed as a flat fee and/or a target-based fee."
+  },
+  {
+    "id": "internship-completion-certificate",
+    "label": "Internship Completion Certificate",
+    "description": "The formal proof of completion, including your start and end dates, role, and an authorized signature."
+  },
+  {
+    "id": "invoice",
+    "label": "Billing Invoice",
+    "description": "The official document outlining the charges, payment terms, and amount due."
+  },
+  {
+    "id": "quotation",
+    "label": "Quotation",
+    "description": "The estimated pricing, scope of work, and terms provided to the client before finalizing the agreement."
+  },
+  {
+    "id": "shoot-contract",
+    "label": "Shoot Contract",
+    "description": "The formal agreement or legal document outlining scope, terms, and obligations between parties."
+  }
+]

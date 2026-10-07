@@ -1,0 +1,232 @@
+/** Types mirror the JSON schemas asserted in postman/collections/MDoc RESTful API. */
+
+export interface HealthResponse {
+  status: 'OK'
+  version?: string | null
+  buildTime?: string | null
+  node: string
+}
+
+// --- Templates -------------------------------------------------------------
+
+export interface TemplateSummary {
+  id: string
+  label: string
+  description: string
+}
+
+/** Leaf values are type hints such as "string" or "email"; objects nest. */
+export type TemplateVariables = { [key: string]: string | TemplateVariables }
+
+export type SignerFieldType =
+  | 'SIGNATURE'
+  | 'INITIALS'
+  | 'DATE'
+  | 'TEXT'
+  | 'NAME'
+  | 'EMAIL'
+  | 'CHECKBOX'
+
+export interface SignerField {
+  id: string
+  type: SignerFieldType
+  signerOrder: number
+  pageIndex?: number | string | number[]
+  x: number
+  y: number
+  width: number
+  height: number
+  required?: boolean
+}
+
+/** Standard JSON Schema subset plus the layout hints the server adds (`x-*`). */
+export interface JsonSchema {
+  type?: 'object' | 'array' | 'string' | 'number' | 'integer' | 'boolean'
+  title?: string
+  description?: string
+  properties?: Record<string, JsonSchema>
+  required?: string[]
+  items?: JsonSchema
+  enum?: (string | number)[]
+  format?: string
+  minimum?: number
+  'x-section'?: string
+  /** 1 = half width, 2 = full width. */
+  'x-column'?: number
+  'x-order'?: number
+}
+
+export interface TemplateDetail extends TemplateSummary {
+  schema: JsonSchema
+  /** Legacy type-hint map; prefer `schema`. */
+  variables: TemplateVariables
+  signerFields: SignerField[]
+}
+
+export interface PreviewRequest {
+  templateId: string
+  /** Include `organizationId` to use a server-side branding preset. */
+  variables: Record<string, unknown>
+}
+
+export interface PreviewResponse {
+  pdfBase64: string
+}
+
+export interface CreateDocumentRequest {
+  name: string
+  template: string
+  userId: string
+  contactId: string
+  organizationId?: string
+  projectId?: string
+  data: Record<string, unknown>
+}
+
+export interface CreateDocumentResponse {
+  id: string
+  templateId: string
+  name: string
+  sizeBytes: number
+}
+
+// --- Documents -------------------------------------------------------------
+
+/** The API documents these; the server may return others (e.g. Sent, Completed). */
+export type DocumentStatus =
+  | 'Plan'
+  | 'Draft'
+  | 'Ready'
+  | 'Delivered'
+  | 'Sent'
+  | 'Completed'
+  | 'Voided'
+  | (string & {})
+
+export interface ProjectRef {
+  id: string | null
+  name: string
+  slug: string
+  status: string
+}
+
+export interface DocumentListItem {
+  id: string
+  templateId: string | null
+  name: string
+  mimeType: string
+  sizeBytes: number | null
+  status: DocumentStatus
+  contact?: { index: number; name: string }
+  project?: ProjectRef
+  organizationId?: string | null
+  previewUrl: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface Pagination {
+  total: number
+  limit: number
+  offset: number
+}
+
+export interface DocumentList {
+  results: DocumentListItem[]
+  pagination: Pagination
+}
+
+export interface DocumentDetail {
+  id: string
+  templateId: string | null
+  name: string
+  mimeType: string
+  sizeBytes: number | null
+  status: DocumentStatus
+  organizationId?: string | null
+  project?: ProjectRef
+  contact?: unknown[]
+  user?: unknown
+  routingType: string | null
+  nextSigner: string | null
+  routingQueue: unknown[] | null
+  categories: unknown[]
+  previewUrl: string
+  createdAt?: string
+  updatedAt?: string
+  rawData: Record<string, unknown> | null
+}
+
+export interface UpdateDocumentRequest {
+  name?: string
+  status?: 'Plan' | 'Draft' | 'Ready' | 'Delivered'
+}
+
+export interface UpdateDocumentResponse {
+  success: boolean
+  message: string
+  id?: string
+}
+
+export interface VoidDocumentResponse {
+  documentStatus: 'Voided'
+  fileName: string
+}
+
+// --- Signer sessions & signing pipeline ------------------------------------
+
+export interface CreateSessionRequest {
+  signerEmail: string
+  expiresIn?: string
+}
+
+export interface CreateSessionResponse {
+  signer: string
+  expiresAt?: string | null
+  sessionToken: string
+}
+
+export interface VerifySessionResponse {
+  isValid: true
+  signerEmail: string
+  role: string
+  order: number
+  status: string
+}
+
+export interface PrepareSigningRequest {
+  sessionToken: string
+  fields?: Record<string, string>
+  certificateDerHex?: string
+  certificateChainDerHex?: string[]
+  telemetry?: { ipAddress?: string; userAgent?: string }
+}
+
+export interface PrepareSigningResponse {
+  sessionId: string
+  digestHex?: string | null
+  signerEmail: string
+  documentStatus: string
+}
+
+export interface SignerState {
+  order: number
+  name: string
+  email: string
+  role: string
+  status: string
+  signedAt?: string
+}
+
+export interface SignResponse {
+  id: string
+  documentStatus: string
+  currentSigner: SignerState
+  nextSigner?: SignerState | null
+}
+
+export interface VerifySignatureResponse {
+  isIntact?: boolean | Record<string, unknown>
+  signer: string
+  message: string
+}
