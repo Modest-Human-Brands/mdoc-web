@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.0.2
+
+[compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.1...v0.0.2)
+
+### 💅 Refactors
+
+- Update environment variables and configuration for improved clarity and consistency ([131d216](https://github.com/Modest-Human-Brands/mdoc-web/commit/131d216))
+
+### ❤️ Contributors
+
+- Shirsendu Bairagi ([@shba007](https://github.com/shba007))
+
 ## v0.0.1
 
 ### 🚀 Enhancements
