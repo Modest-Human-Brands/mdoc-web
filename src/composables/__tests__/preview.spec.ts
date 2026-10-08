@@ -53,6 +53,7 @@ describe('usePreview', () => {
     const init = fetchMock.mock.calls[0]?.[1]
     expect(JSON.parse(init?.body as string)).toEqual({
       templateId: 'invoice',
+      variant: 'filled',
       variables: { a: '123' },
     })
     expect(preview.url.value).toBe('blob:mock')

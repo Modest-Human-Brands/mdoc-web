@@ -85,4 +85,25 @@ describe('TemplateThumb', () => {
     expect(wrapper.find('[data-testid="pdf"]').exists()).toBe(false)
     expect(wrapper.find('svg').exists()).toBe(true)
   })
+
+  it('shows the static image and never loads the PDF when the server provides one', async () => {
+    const wrapper = mount(TemplateThumb, {
+      props: { url: '/api/x/sample.pdf', imageUrl: '/api/x/sample/1.png?v=abc' },
+    })
+    await flushPromises()
+    trigger?.([{ isIntersecting: true }])
+    await flushPromises()
+
+    expect(wrapper.get('img').attributes('src')).toBe('/api/x/sample/1.png?v=abc')
+    expect(wrapper.find('[data-testid="pdf"]').exists()).toBe(false)
+  })
+
+  it('falls back to the PDF when the image cannot be loaded', async () => {
+    const wrapper = mount(TemplateThumb, {
+      props: { url: '/api/x/sample.pdf', imageUrl: '/api/x/sample/1.png' },
+    })
+    await wrapper.get('img').trigger('error')
+    trigger?.([{ isIntersecting: true }])
+    await vi.waitFor(() => expect(wrapper.find('[data-testid="pdf"]').exists()).toBe(true))
+  })
 })

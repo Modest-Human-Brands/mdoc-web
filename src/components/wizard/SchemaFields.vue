@@ -3,6 +3,7 @@ import { NotArrayField, NotField } from 'notform'
 import { computed } from 'vue'
 
 import type { JsonSchema } from '@/api'
+import DecorPicker from '@/components/wizard/DecorPicker.vue'
 import UiAddButton from '@/components/ui/UiAddButton.vue'
 import UiSegmentedControl from '@/components/ui/UiSegmentedControl.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
@@ -127,8 +128,19 @@ function noun(schema: JsonSchema, key: string): string {
       <div v-if="block.kind === 'fields'" class="grid grid-cols-2 gap-3">
         <template v-for="[key, child] in block.entries" :key="key">
           <NotField v-slot="{ errors, events }" :path="dotted([...base, key])">
+            <DecorPicker
+              v-if="child['x-widget']"
+              :model-value="text([...base, key])"
+              :label="label(key, child)"
+              :widget="child['x-widget']"
+              :decor-slot="child['x-decor-slot']"
+              :hint="isRequired(key) ? undefined : 'optional'"
+              :error="messageFor(errors, [...base, key])"
+              :class="'col-span-2'"
+              @update:model-value="(v) => set([...base, key], v)"
+            />
             <UiSelect
-              v-if="child.enum && child.enum.length > 3"
+              v-else-if="child.enum && child.enum.length > 3"
               :model-value="text([...base, key])"
               :label="label(key, child)"
               :options="child.enum.map(String)"

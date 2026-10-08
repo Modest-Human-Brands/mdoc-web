@@ -103,7 +103,7 @@ describe('WebMCP tools', () => {
       await call('list_templates'),
     )
 
-    expect(result).toHaveLength(5)
+    expect(result).toHaveLength(6)
     expect(result.find((t) => t.id === 'invoice')).toMatchObject({
       category: 'Billing',
       shortLabel: 'Invoice',
@@ -311,6 +311,10 @@ describe('WebMCP tools', () => {
   })
 
   it('set_organization validates colours, font and emails, all or nothing', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>(() => Promise.resolve(json([{ family: 'Poppins', name: 'Poppins' }]))),
+    )
     const { wizard, call } = setup()
     const before = JSON.stringify(wizard.organization)
 
@@ -327,16 +331,20 @@ describe('WebMCP tools', () => {
     expect(body.errors.join(' ')).toContain('#5945EA')
     expect(JSON.stringify(wizard.organization)).toBe(before)
 
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>(() => Promise.resolve(json([{ family: 'Poppins', name: 'Poppins' }]))),
+    )
     const good = await call('set_organization', {
       primary: '#abc',
       accent: '#5945ea',
-      font: 'exo 2',
+      font: 'poppins',
     })
     expect(good.isError).toBeUndefined()
     expect(wizard.organization).toMatchObject({
       primary: '#AABBCC',
       accent: '#5945EA',
-      font: 'Exo 2',
+      font: 'Poppins',
     })
   })
 

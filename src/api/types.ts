@@ -12,6 +12,16 @@ export interface TemplateSummary {
   category: string
   description: string
   sampleUrl: string
+  thumbnailUrl: string | null
+  pageCount: number
+  version: string
+  pages: TemplatePage[]
+}
+
+export interface TemplatePage {
+  url: string
+  width: number
+  height: number
 }
 
 export type TemplateVariables = { [key: string]: string | TemplateVariables }
@@ -56,6 +66,8 @@ export interface JsonSchema {
   'x-section'?: string
   'x-column'?: number
   'x-order'?: number
+  'x-widget'?: 'decor' | 'image'
+  'x-decor-slot'?: string
 }
 
 export interface TemplateDetail extends TemplateSummary {
@@ -64,8 +76,11 @@ export interface TemplateDetail extends TemplateSummary {
   signerFields: SignerField[]
 }
 
+export type PreviewVariant = 'sample' | 'branded' | 'filled'
+
 export interface PreviewRequest {
   templateId: string
+  variant?: PreviewVariant
   variables: Record<string, unknown>
 }
 
@@ -85,6 +100,7 @@ export interface PreviewWarning {
 export interface PreviewResponse {
   pdfBase64: string
   pageCount: number
+  variant?: PreviewVariant
   warnings?: PreviewWarning[]
 }
 
@@ -239,4 +255,22 @@ export interface VerifySignatureResponse {
   isIntact?: boolean | Record<string, unknown>
   signer: string
   message: string
+}
+
+export interface DecorSummary {
+  id: string
+  label: string
+  kind: 'illustration' | 'pattern' | 'frame'
+  tintable: boolean
+  slots: string[]
+  thumbUrl: string
+}
+
+export interface DecorUpload {
+  id: string
+  url: string
+}
+export interface FontSummary {
+  family: string
+  name: string
 }

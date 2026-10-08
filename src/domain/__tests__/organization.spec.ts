@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test'
 
-import { emptyOrganization, FONTS, toOrganizationOverride } from '../organization'
+import { DEFAULT_FONT, emptyOrganization, fontName, toOrganizationOverride } from '../organization'
 
 function profile(changes: Partial<ReturnType<typeof emptyOrganization>> = {}) {
   return { ...emptyOrganization(), ...changes }
@@ -76,7 +76,58 @@ describe('toOrganizationOverride', () => {
     expect(override).toMatchObject({ branding: { logo: 'data:image/png;base64,AAAA' } })
   })
 
-  it('only offers fonts the server can render', () => {
-    expect(FONTS).toEqual(['Exo 2'])
+  it('sends the font name the server stores: the family without spaces', () => {
+    expect(toOrganizationOverride(profile({ font: 'Open Sans' }))).toEqual({
+      id: 'modest-human-brands',
+      branding: { font: 'OpenSans' },
+    })
+    expect(fontName('Playfair Display')).toBe('PlayfairDisplay')
+  })
+
+  it('sends nothing for the default font', () => {
+    expect(toOrganizationOverride(profile({ font: DEFAULT_FONT }))).toBeNull()
+  })
+})
+
+describe('toOrganizationOverride (profile details)', () => {
+  it('sends address, contact channels, founding year and the relationship once set', () => {
+    const override = toOrganizationOverride(
+      profile({
+        address: ' 99 Test Road, Pune ',
+        website: 'https://zzz.example',
+        whatsapp: '+911234567890',
+        foundedYear: '2019',
+        tradeRelationship: 'Trading As',
+      }),
+    )
+
+    expect(override).toEqual({
+      id: 'modest-human-brands',
+      address: '99 Test Road, Pune',
+      website: 'https://zzz.example',
+      whatsapp: '+911234567890',
+      foundedYear: 2019,
+      tradeRelationship: 'Trading As',
+    })
+  })
+
+  it('sends only the socials that have a link', () => {
+    const base = emptyOrganization()
+    const override = toOrganizationOverride({
+      ...base,
+      socials: { ...base.socials, instagram: 'https://instagram.com/zzz' },
+    })
+
+    expect(override).toEqual({
+      id: 'modest-human-brands',
+      socials: { instagram: 'https://instagram.com/zzz' },
+    })
+  })
+
+  it('leaves the default relationship and a blank year out', () => {
+    expect(toOrganizationOverride(profile({ name: 'X' }))).toEqual({
+      id: 'modest-human-brands',
+      name: 'X',
+    })
   })
 })

@@ -117,6 +117,8 @@ export const useWizardStore = defineStore('wizard', () => {
       : { organizationId: organization.id },
   )
 
+  const brandPreviewVariables = computed<Values>(() => ({ ...organizationFields.value }))
+
   const previewVariables = computed<Values>(() => ({
     ...((schema.value ? toPayload(schema.value, values) : undefined) as Values | undefined),
     ...organizationFields.value,
@@ -355,6 +357,7 @@ export const useWizardStore = defineStore('wizard', () => {
     showAmountDue,
     organizationOverride,
     previewVariables,
+    brandPreviewVariables,
     problems,
     idsReady,
     applyTemplate,

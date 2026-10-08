@@ -1,5 +1,7 @@
 export { ApiError, resolveApiUrl, type FieldError } from './http'
+export { decorApi } from './decor'
 export { documentsApi } from './documents'
+export { fontsApi } from './fonts'
 export { healthApi } from './health'
 export { signingApi } from './signing'
 export { templatesApi } from './templates'

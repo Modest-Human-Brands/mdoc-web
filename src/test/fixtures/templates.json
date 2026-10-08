@@ -5,7 +5,32 @@
     "shortLabel": "Retainer contract",
     "category": "Contracts",
     "description": "A recurring monthly engagement agreement for marketing or development work, billed as a flat fee and/or a target-based fee.",
-    "sampleUrl": "/api/document/template/retainer-contract/sample.pdf"
+    "sampleUrl": "/api/document/template/retainer-contract/sample.pdf",
+    "thumbnailUrl": "/api/document/template/retainer-contract/sample/1.png?v=55803408cc56",
+    "pages": [
+      {
+        "url": "/api/document/template/retainer-contract/sample/1.png?v=55803408cc56",
+        "width": 1191,
+        "height": 1684
+      },
+      {
+        "url": "/api/document/template/retainer-contract/sample/2.png?v=55803408cc56",
+        "width": 1191,
+        "height": 1684
+      },
+      {
+        "url": "/api/document/template/retainer-contract/sample/3.png?v=55803408cc56",
+        "width": 1191,
+        "height": 1684
+      },
+      {
+        "url": "/api/document/template/retainer-contract/sample/4.png?v=55803408cc56",
+        "width": 1191,
+        "height": 1684
+      }
+    ],
+    "pageCount": 4,
+    "version": "55803408cc56"
   },
   {
     "id": "internship-completion-certificate",
@@ -13,7 +38,17 @@
     "shortLabel": "Internship certificate",
     "category": "Certificates",
     "description": "The formal proof of completion, including your start and end dates, role, and an authorized signature.",
-    "sampleUrl": "/api/document/template/internship-completion-certificate/sample.pdf"
+    "sampleUrl": "/api/document/template/internship-completion-certificate/sample.pdf",
+    "thumbnailUrl": "/api/document/template/internship-completion-certificate/sample/1.png?v=8ac4f55e2100",
+    "pages": [
+      {
+        "url": "/api/document/template/internship-completion-certificate/sample/1.png?v=8ac4f55e2100",
+        "width": 1191,
+        "height": 1684
+      }
+    ],
+    "pageCount": 1,
+    "version": "8ac4f55e2100"
   },
   {
     "id": "invoice",
@@ -21,7 +56,40 @@
     "shortLabel": "Invoice",
     "category": "Billing",
     "description": "The official document outlining the charges, payment terms, and amount due.",
-    "sampleUrl": "/api/document/template/invoice/sample.pdf"
+    "sampleUrl": "/api/document/template/invoice/sample.pdf",
+    "thumbnailUrl": "/api/document/template/invoice/sample/1.png?v=301caf3fb7a1",
+    "pages": [
+      {
+        "url": "/api/document/template/invoice/sample/1.png?v=301caf3fb7a1",
+        "width": 1191,
+        "height": 1684
+      }
+    ],
+    "pageCount": 1,
+    "version": "301caf3fb7a1"
+  },
+  {
+    "id": "brochure",
+    "label": "Tri-fold Brochure",
+    "shortLabel": "Brochure",
+    "category": "Marketing",
+    "description": "A two-sided landscape tri-fold brochure with cover, services, process and contact panels.",
+    "sampleUrl": "/api/document/template/brochure/sample.pdf",
+    "thumbnailUrl": "/api/document/template/brochure/sample/1.png?v=28540a2a42b2",
+    "pages": [
+      {
+        "url": "/api/document/template/brochure/sample/1.png?v=28540a2a42b2",
+        "width": 1684,
+        "height": 1191
+      },
+      {
+        "url": "/api/document/template/brochure/sample/2.png?v=28540a2a42b2",
+        "width": 1684,
+        "height": 1191
+      }
+    ],
+    "pageCount": 2,
+    "version": "28540a2a42b2"
   },
   {
     "id": "quotation",
@@ -29,7 +97,42 @@
     "shortLabel": "Quotation",
     "category": "Billing",
     "description": "The estimated pricing, scope of work, and terms provided to the client before finalizing the agreement.",
-    "sampleUrl": "/api/document/template/quotation/sample.pdf"
+    "sampleUrl": "/api/document/template/quotation/sample.pdf",
+    "thumbnailUrl": "/api/document/template/quotation/sample/1.png?v=49e75216c150",
+    "pages": [
+      {
+        "url": "/api/document/template/quotation/sample/1.png?v=49e75216c150",
+        "width": 1191,
+        "height": 1684
+      },
+      {
+        "url": "/api/document/template/quotation/sample/2.png?v=49e75216c150",
+        "width": 1191,
+        "height": 1684
+      },
+      {
+        "url": "/api/document/template/quotation/sample/3.png?v=49e75216c150",
+        "width": 1191,
+        "height": 1684
+      },
+      {
+        "url": "/api/document/template/quotation/sample/4.png?v=49e75216c150",
+        "width": 1191,
+        "height": 1684
+      },
+      {
+        "url": "/api/document/template/quotation/sample/5.png?v=49e75216c150",
+        "width": 1191,
+        "height": 1684
+      },
+      {
+        "url": "/api/document/template/quotation/sample/6.png?v=49e75216c150",
+        "width": 1191,
+        "height": 1684
+      }
+    ],
+    "pageCount": 6,
+    "version": "49e75216c150"
   },
   {
     "id": "shoot-contract",
@@ -37,6 +140,26 @@
     "shortLabel": "Shoot contract",
     "category": "Contracts",
     "description": "The formal agreement or legal document outlining scope, terms, and obligations between parties.",
-    "sampleUrl": "/api/document/template/shoot-contract/sample.pdf"
+    "sampleUrl": "/api/document/template/shoot-contract/sample.pdf",
+    "thumbnailUrl": "/api/document/template/shoot-contract/sample/1.png?v=22d16a7211bf",
+    "pages": [
+      {
+        "url": "/api/document/template/shoot-contract/sample/1.png?v=22d16a7211bf",
+        "width": 1191,
+        "height": 1684
+      },
+      {
+        "url": "/api/document/template/shoot-contract/sample/2.png?v=22d16a7211bf",
+        "width": 1191,
+        "height": 1684
+      },
+      {
+        "url": "/api/document/template/shoot-contract/sample/3.png?v=22d16a7211bf",
+        "width": 1191,
+        "height": 1684
+      }
+    ],
+    "pageCount": 3,
+    "version": "22d16a7211bf"
   }
 ]

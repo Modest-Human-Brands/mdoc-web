@@ -1,17 +1,21 @@
 <script setup lang="ts">
 import { useElementSize } from '@vueuse/core'
-import { computed, defineAsyncComponent, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, ref, watch } from 'vue'
 
+import type { TemplatePage } from '@/api'
 import UiDocToolbar from '@/components/ui/UiDocToolbar.vue'
 import UiPageRail from '@/components/ui/UiPageRail.vue'
 import { blobFromUrl, pdfFileName, saveBlob } from '@/domain/download'
 import { mostVisiblePage } from '@/domain/pages'
+
+import ImagePages from './ImagePages.vue'
 
 const PdfDocument = defineAsyncComponent(() => import('./PdfDocument.vue'))
 
 const props = defineProps<{
   label: string
   url: string | null
+  pages?: TemplatePage[]
   loading?: boolean
   error?: string | null
   fetchDownload?: () => Promise<Blob>
@@ -61,11 +65,87 @@ const zoom = computed({
 })
 
 const pageWidth = computed(() => (PAGE_WIDTH * zoom.value) / 100)
+const hasImages = computed(() => (props.pages?.length ?? 0) > 0)
+const active = computed(() => hasImages.value || props.url !== null)
+
+interface Layer {
+  id: number
+  url: string | null
+  pages: TemplatePage[] | null
+  ready: boolean
+}
+
+const SETTLE_MS = 600
+
+const layers = ref<Layer[]>([])
+let nextLayerId = 0
+let pruneTimer: ReturnType<typeof setTimeout> | undefined
+
+const source = computed(() => {
+  if (hasImages.value && props.pages) return `images:${props.pages.map((p) => p.url).join('|')}`
+  return props.url ? `pdf:${props.url}` : null
+})
+
+watch(
+  source,
+  (key) => {
+    clearTimeout(pruneTimer)
+    if (key === null) {
+      layers.value = []
+      return
+    }
+    const shown = [...layers.value].reverse().find((layer) => layer.ready)
+    const incoming: Layer = {
+      id: nextLayerId++,
+      url: hasImages.value ? null : props.url,
+      pages: hasImages.value ? (props.pages ?? null) : null,
+      ready: false,
+    }
+    layers.value = shown ? [shown, incoming] : [incoming]
+  },
+  { immediate: true },
+)
+
+const newestId = computed(() => layers.value[layers.value.length - 1]?.id ?? -1)
+const newestReady = computed(() => layers.value[layers.value.length - 1]?.ready ?? false)
+
+function layerClass(layer: Layer): string {
+  if (layer.id === newestId.value) {
+    return layer.ready ? 'opacity-100 blur-0' : 'opacity-0 blur-md'
+  }
+  return newestReady.value ? 'opacity-0 blur-lg' : 'opacity-100 blur-[3px]'
+}
+
+function markReady(id: number) {
+  const layer = layers.value.find((item) => item.id === id)
+  if (!layer || layer.ready) return
+  layer.ready = true
+  if (id !== newestId.value) return
+  clearTimeout(pruneTimer)
+  pruneTimer = setTimeout(() => {
+    layers.value = layers.value.filter((item) => item.id >= id)
+  }, SETTLE_MS)
+}
+
+function onLayerPages(id: number, count: number) {
+  if (id === newestId.value) onPages(count)
+}
+
+function onLayerAspect(id: number, ratio: number) {
+  if (id === newestId.value) aspect.value = ratio
+}
+
+function onPdfAspect(id: number, ratio: number) {
+  onLayerAspect(id, ratio)
+  markReady(id)
+}
 
 function onPages(count: number) {
   pageCount.value = count
   if (page.value > count) page.value = count
 }
+
+onBeforeUnmount(() => clearTimeout(pruneTimer))
 
 let jumping = false
 let jumpTimer: ReturnType<typeof setTimeout> | undefined
@@ -75,7 +155,7 @@ function pageBoxes() {
   const container = stage.value
   if (!container) return []
   const origin = container.getBoundingClientRect().top
-  return [...container.querySelectorAll<HTMLElement>('[data-page]')].map((el) => {
+  return [...container.querySelectorAll<HTMLElement>('[data-newest] [data-page]')].map((el) => {
     const rect = el.getBoundingClientRect()
     return { top: rect.top - origin, bottom: rect.bottom - origin }
   })
@@ -167,23 +247,33 @@ function onPointerUp(event: PointerEvent) {
   >
     <header class="flex h-4.25 items-center justify-between">
       <h2 class="text-sm font-bold text-light-400">{{ label }}</h2>
-      <span v-if="loading && url" class="text-xs text-light-400" role="status">Updating…</span>
+      <span
+        v-if="(loading && url) || (layers.length > 0 && !newestReady && !renderError)"
+        class="flex items-center gap-2 text-xs text-light-400"
+        role="status"
+      >
+        <span
+          class="size-3 animate-spin rounded-full border-2 border-light-500 border-t-transparent"
+          aria-hidden="true"
+        />
+        Updating…
+      </span>
     </header>
 
     <div class="relative flex min-h-0 flex-1 items-center justify-center">
       <p
-        v-if="!url && !error && !loading"
+        v-if="!active && !error && !loading"
         class="max-w-64 text-center text-sm text-light-400"
         data-testid="preview-empty"
       >
         Nothing to preview yet. Pick a template on the left to see it here.
       </p>
-      <p v-else-if="!url && loading" class="text-sm text-light-400" role="status">
+      <p v-else-if="!active && loading" class="text-sm text-light-400" role="status">
         Rendering preview…
       </p>
 
       <div
-        v-if="url"
+        v-if="active"
         ref="stage"
         class="no-scrollbar size-full touch-none overflow-auto"
         :class="zoom > fitZoom ? 'cursor-grab active:cursor-grabbing' : ''"
@@ -195,16 +285,32 @@ function onPointerUp(event: PointerEvent) {
         @scroll.passive="onScroll"
         @scrollend="endJump"
       >
-        <div class="flex min-h-full min-w-full flex-col items-center justify-center p-3">
-          <PdfDocument
-            :url="url"
-            :width="pageWidth"
-            class="transition-opacity"
-            :class="loading ? 'opacity-70' : ''"
-            @pages="onPages"
-            @aspect="aspect = $event"
-            @failed="renderError = $event"
-          />
+        <div class="grid min-h-full min-w-full place-items-center p-3">
+          <div
+            v-for="layer in layers"
+            :key="layer.id"
+            class="col-start-1 row-start-1 transition-[opacity,filter] duration-500 ease-out"
+            :class="[layerClass(layer), layer.id === newestId ? '' : 'pointer-events-none']"
+            :data-newest="layer.id === newestId ? '' : undefined"
+            :aria-hidden="layer.id === newestId ? undefined : true"
+          >
+            <ImagePages
+              v-if="layer.pages"
+              :pages="layer.pages"
+              :width="pageWidth"
+              @pages="onLayerPages(layer.id, $event)"
+              @aspect="onLayerAspect(layer.id, $event)"
+              @ready="markReady(layer.id)"
+            />
+            <PdfDocument
+              v-else-if="layer.url"
+              :url="layer.url"
+              :width="pageWidth"
+              @pages="onLayerPages(layer.id, $event)"
+              @aspect="onPdfAspect(layer.id, $event)"
+              @failed="renderError = $event"
+            />
+          </div>
         </div>
       </div>
 
@@ -221,7 +327,7 @@ function onPointerUp(event: PointerEvent) {
       </p>
 
       <UiPageRail
-        v-if="url && pageCount > 1"
+        v-if="active && pageCount > 1"
         :model-value="page"
         :pages="pageCount"
         class="absolute top-1/2 right-4 -translate-y-1/2"
@@ -229,9 +335,9 @@ function onPointerUp(event: PointerEvent) {
       />
 
       <UiDocToolbar
-        v-if="url"
+        v-if="active"
         v-model:zoom="zoom"
-        :download-disabled="downloading"
+        :download-disabled="downloading || !url"
         class="absolute bottom-2 left-1/2 -translate-x-1/2"
         @fit="userZoom = null"
         @print="print"

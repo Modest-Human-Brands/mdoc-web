@@ -32,7 +32,7 @@ async function cancel() {
           >
             M
           </span>
-          <h1 class="text-base font-bold text-white">New document</h1>
+          <h1 class="text-base font-bold text-white">MDoc</h1>
         </div>
         <button
           type="button"

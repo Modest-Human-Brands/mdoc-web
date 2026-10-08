@@ -1,6 +1,6 @@
 import { onScopeDispose, ref, toValue, watch, type MaybeRefOrGetter } from 'vue'
 
-import { templatesApi, type PreviewWarning } from '@/api'
+import { templatesApi, type PreviewVariant, type PreviewWarning } from '@/api'
 
 import { errorMessage } from './useTemplates'
 
@@ -23,6 +23,7 @@ export function base64ToBlob(base64: string, type = 'application/pdf'): Blob {
 export function usePreview(
   templateId: MaybeRefOrGetter<string | null>,
   variables: MaybeRefOrGetter<Record<string, unknown>>,
+  variant: MaybeRefOrGetter<PreviewVariant> = 'filled',
 ) {
   const url = ref<string | null>(null)
   const pageCount = ref(1)
@@ -54,8 +55,8 @@ export function usePreview(
     }
   }
 
-  async function render(id: string, vars: Record<string, unknown>) {
-    const key = JSON.stringify([id, vars])
+  async function render(id: string, kind: PreviewVariant, vars: Record<string, unknown>) {
+    const key = JSON.stringify([id, kind, vars])
     const hit = cache.get(key)
     if (hit) {
       show(hit)
@@ -68,7 +69,7 @@ export function usePreview(
     error.value = null
     try {
       const response = await templatesApi.preview(
-        { templateId: id, variables: vars },
+        { templateId: id, variant: kind, variables: vars },
         { draft: true, signal: controller.signal },
       )
       const rendered: Rendered = {
@@ -86,8 +87,8 @@ export function usePreview(
   }
 
   watch(
-    () => [toValue(templateId), JSON.stringify(toValue(variables))] as const,
-    ([id]) => {
+    () => [toValue(templateId), toValue(variant), JSON.stringify(toValue(variables))] as const,
+    ([id, kind]) => {
       clearTimeout(timer)
       if (!id) {
         controller?.abort()
@@ -97,7 +98,7 @@ export function usePreview(
         error.value = null
         return
       }
-      timer = setTimeout(() => void render(id, toValue(variables)), DEBOUNCE_MS)
+      timer = setTimeout(() => void render(id, kind, toValue(variables)), DEBOUNCE_MS)
     },
     { immediate: true },
   )

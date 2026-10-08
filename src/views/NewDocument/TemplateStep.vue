@@ -77,7 +77,7 @@ async function next() {
         @click="toggle(template.id)"
       >
         <template #thumbnail>
-          <TemplateThumb :url="resolveApiUrl(template.sampleUrl)" />
+          <TemplateThumb :url="template.sampleUrl" :image-url="template.thumbnailUrl" />
         </template>
       </UiTemplateCard>
     </div>
@@ -94,7 +94,8 @@ async function next() {
 
     <template #preview>
       <PreviewPanel
-        :label="selected ? `Preview · ${selected.shortLabel} · sample data` : 'Preview'"
+        :label="selected ? `Preview · ${selected.shortLabel} · Sample` : 'Preview'"
+        :pages="selected?.pages"
         :url="sampleUrl"
         :download-name="selected ? `${selected.shortLabel} sample` : undefined"
         :reset-key="wizard.templateId"

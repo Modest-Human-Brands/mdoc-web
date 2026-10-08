@@ -8,10 +8,11 @@ import { categoryFilters } from '../templates'
 describe('categoryFilters', () => {
   it('builds chips from the categories the server reports (real template list)', () => {
     expect(categoryFilters(templates as TemplateSummary[])).toEqual([
-      { id: 'All', count: 5 },
+      { id: 'All', count: 6 },
       { id: 'Contracts', count: 2 },
       { id: 'Certificates', count: 1 },
       { id: 'Billing', count: 2 },
+      { id: 'Marketing', count: 1 },
     ])
   })
 

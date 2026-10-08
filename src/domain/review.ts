@@ -1,5 +1,6 @@
 import type { JsonSchema } from '@/api'
 
+import { describeDecor } from './decor'
 import { formatDate } from './invoice'
 import type { OrganizationProfile } from './organization'
 import {
@@ -39,6 +40,7 @@ export function formatReviewValue(node: JsonSchema, value: unknown): string {
   const text =
     typeof value === 'string' ? value.trim() : typeof value === 'number' ? String(value) : ''
   if (text === '') return ''
+  if (node['x-widget']) return describeDecor(text)
   if (node.format === 'date') return formatDate(text) || text
   if (isNumeric(node)) {
     const parsed = Number.parseFloat(text.replace(/,/g, ''))
@@ -134,10 +136,13 @@ export function organizationReview(profile: OrganizationProfile): ReviewSection 
   }
   add('Business name', profile.name)
   add('Legal name', profile.legalName)
+  add('Address', profile.address)
   add('PAN', profile.pan)
   add('GSTIN', profile.gstin)
   add('Bank', [profile.bank.bankName, profile.bank.accountName].filter(Boolean).join(' · '))
   add('Contact', [profile.contactEmail, profile.phone].filter(Boolean).join(' · '))
+  add('Website', profile.website)
+  add('Social', Object.values(profile.socials).filter(Boolean).join(' · '))
   if (rows.length === 0) rows.push({ label: 'Organisation', value: profile.id })
   return { title: 'Brand', rows }
 }

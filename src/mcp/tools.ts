@@ -4,16 +4,22 @@ import {
   ApiError,
   documentsApi,
   fetchTemplateDetail,
+  fontsApi,
   templatesApi,
   type TemplateDetail,
 } from '@/api'
 import {
+  DEFAULT_FONT,
   ENTITY_TYPES,
-  FONTS,
+  foundedYearError,
   isEmail,
   normalizeHex,
+  SOCIAL_KEYS,
+  TRADE_RELATIONSHIPS,
   type OrganizationProfile,
+  type SocialKey,
 } from '@/domain/organization'
+import { isHttpsUrl } from '@/domain/url'
 import { emptyValue, getPath, stripExcluded, textAt, toPayload, type Values } from '@/domain/schema'
 import { STEPS, useWizardStore } from '@/stores/wizard'
 
@@ -84,7 +90,27 @@ const ORGANIZATION_KEYS = [
   'contactEmail',
   'billingEmail',
   'phone',
+  'whatsapp',
+  'address',
+  'tradeRelationship',
+  'foundedYear',
+  'website',
+  ...SOCIAL_KEYS,
 ] as const
+
+async function resolveFont(
+  text: string,
+): Promise<{ family: string | null; suggestions: string[] }> {
+  const same = (family: string) => family.toLowerCase() === text.toLowerCase()
+  if (same(DEFAULT_FONT)) return { family: DEFAULT_FONT, suggestions: [] }
+  try {
+    const fonts = await fontsApi.list({ q: text, limit: 8 })
+    const match = fonts.find((font) => same(font.family))
+    return { family: match?.family ?? null, suggestions: fonts.map((font) => font.family) }
+  } catch {
+    return { family: null, suggestions: [DEFAULT_FONT] }
+  }
+}
 
 export function createTools(deps: ToolDeps): ModelContextTool[] {
   const { wizard, router, confirm } = deps
@@ -348,13 +374,14 @@ export function createTools(deps: ToolDeps): ModelContextTool[] {
         properties: Object.fromEntries(ORGANIZATION_KEYS.map((key) => [key, STRING])),
       },
       false,
-      (args) => {
+      async (args) => {
         const unknown = Object.keys(args).filter(
           (key) => !(ORGANIZATION_KEYS as readonly string[]).includes(key),
         )
         if (unknown.length > 0) return fail(`Unknown keys: ${unknown.join(', ')}.`)
         const next: Partial<OrganizationProfile> = {}
         const errors: string[] = []
+        const socials: Partial<Record<SocialKey, string>> = {}
         for (const key of ORGANIZATION_KEYS) {
           const value = args[key]
           if (value === undefined) continue
@@ -372,12 +399,31 @@ export function createTools(deps: ToolDeps): ModelContextTool[] {
             if (hex) next[key] = hex
             else errors.push(`"${key}" must be a hex colour such as #5945EA (got "${value}").`)
           } else if (key === 'font') {
-            const font = FONTS.find((f) => f.toLowerCase() === text.toLowerCase())
-            if (font) next.font = font
-            else errors.push(`font must be one of: ${FONTS.join(', ')}.`)
+            const font = await resolveFont(text)
+            if (font.family) next.font = font.family
+            else {
+              const hint =
+                font.suggestions.length > 0 ? ` Did you mean: ${font.suggestions.join(', ')}?` : ''
+              errors.push(`"${text}" is not an available font.${hint}`)
+            }
           } else if (key === 'contactEmail' || key === 'billingEmail') {
             if (text === '' || isEmail(text)) next[key] = text
             else errors.push(`"${key}" must be a valid email address (got "${value}").`)
+          } else if (key === 'tradeRelationship') {
+            const relation = TRADE_RELATIONSHIPS.find((r) => r.toLowerCase() === text.toLowerCase())
+            if (relation) next.tradeRelationship = relation
+            else {
+              errors.push(`tradeRelationship must be one of: ${TRADE_RELATIONSHIPS.join(', ')}.`)
+            }
+          } else if (key === 'foundedYear') {
+            const problem = foundedYearError(text)
+            if (problem) errors.push(`foundedYear: ${problem}`)
+            else next.foundedYear = text
+          } else if (key === 'website' || (SOCIAL_KEYS as readonly string[]).includes(key)) {
+            if (text !== '' && !isHttpsUrl(text)) {
+              errors.push(`"${key}" must be an https:// link (got "${value}").`)
+            } else if (key === 'website') next.website = text
+            else socials[key as SocialKey] = text
           } else if (key === 'id' && text === '') {
             errors.push('id cannot be empty.')
           } else {
@@ -386,6 +432,7 @@ export function createTools(deps: ToolDeps): ModelContextTool[] {
         }
         if (errors.length > 0) return fail('No organisation fields were changed.', { errors })
         Object.assign(wizard.organization, next)
+        Object.assign(wizard.organization.socials, socials)
         wizard.saveOrganizationProfile()
         return ok({ organizationId: wizard.organization.id })
       },

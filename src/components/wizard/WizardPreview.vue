@@ -7,17 +7,22 @@ import { useWizardStore } from '@/stores/wizard'
 
 import PreviewPanel from './PreviewPanel.vue'
 
-defineProps<{ label: string }>()
+const props = withDefaults(defineProps<{ label: string; variant?: 'branded' | 'filled' }>(), {
+  variant: 'filled',
+})
 
 const wizard = useWizardStore()
 
 const previewTemplate = computed(() => (wizard.schema ? wizard.templateId : null))
 const { url, pageCount, warnings, loading, error } = usePreview(
   previewTemplate,
-  () => wizard.previewVariables,
+  () => (props.variant === 'branded' ? wizard.brandPreviewVariables : wizard.previewVariables),
+  () => props.variant,
 )
 
-watch(warnings, (list) => wizard.setPreviewWarnings(list), { immediate: true })
+watch(warnings, (list) => wizard.setPreviewWarnings(props.variant === 'filled' ? list : []), {
+  immediate: true,
+})
 watch(
   [url, loading, error, pageCount],
   () =>

@@ -94,7 +94,7 @@ async function next() {
     </template>
 
     <template #preview>
-      <WizardPreview :label="`Live preview · ${label}`" />
+      <WizardPreview :label="`Live preview · ${label}`" variant="filled" />
     </template>
   </WizardShell>
 </template>
