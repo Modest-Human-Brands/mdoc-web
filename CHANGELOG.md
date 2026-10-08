@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.0.3
+
+[compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.2...v0.0.3)
+
+### 🚀 Enhancements
+
+- Enhance preview functionality with variant support and improve organization form ([bbf4106](https://github.com/Modest-Human-Brands/mdoc-web/commit/bbf4106))
+
+### 🏡 Chore
+
+- Remove unused assets and exports ([9ec680b](https://github.com/Modest-Human-Brands/mdoc-web/commit/9ec680b))
+
+### ❤️ Contributors
+
+- Shirsendu Bairagi ([@shba007](https://github.com/shba007))
+
 ## v0.0.2
 
 [compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.1...v0.0.2)
