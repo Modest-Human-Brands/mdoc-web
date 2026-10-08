@@ -5,7 +5,6 @@ import {
   computeTotals,
   formatInr,
   hasBilling,
-  makeInvoiceNumber,
   parseAmount,
   templateDefaults,
 } from '../invoice'
@@ -96,20 +95,16 @@ describe('invoice helpers', () => {
     expect(addDays('nope', 7)).toBe('')
   })
 
-  it('builds prefix, year and padded sequence', () => {
-    expect(makeInvoiceNumber('Modest Human Brands', '2026-10-07', 14)).toBe('MHB-I-26-014')
-    expect(makeInvoiceNumber('', '2026-10-07', 1)).toBe('INV-I-26-001')
-  })
-
-  it('only gives the invoice defaults, in the API field names', () => {
-    const defaults = templateDefaults('invoice', 'Modest Human Brands', 3)
+  it('only gives the invoice date defaults the schema cannot express', () => {
+    const defaults = templateDefaults('invoice')
 
     expect(defaults).toMatchObject({
-      pricingModel: 'project',
-      project: { invoiceNumber: expect.stringMatching(/^MHB-I-\d{2}-003$/) as string },
-      financials: { isDiscountPercentage: true, taxLabel: 'GST' },
+      dueDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) as string,
+      project: { deliverables: [{ quantity: '1' }] },
     })
-    expect(templateDefaults('quotation', 'x', 1)).toEqual({})
+    expect(defaults).not.toHaveProperty('financials')
+    expect(defaults).not.toHaveProperty('project.invoiceNumber')
+    expect(templateDefaults('quotation')).toEqual({})
   })
 
   it('shows billing only when project and financials exist', () => {

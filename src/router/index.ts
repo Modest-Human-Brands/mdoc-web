@@ -23,19 +23,18 @@ const router = createRouter({
     },
     {
       path: STEPS[3].path,
-      name: 'send',
-      component: () => import('@/views/NewDocument/SendStep.vue'),
+      name: 'review',
+      component: () => import('@/views/NewDocument/ReviewStep.vue'),
     },
     { path: '/:pathMatch(.*)*', redirect: STEPS[0].path },
   ],
 })
 
-/** Deep links must not skip ahead: no template → back to step 1, no document yet → back to details. */
 router.beforeEach((to) => {
   const wizard = useWizardStore()
 
   if (to.name !== 'template' && !wizard.templateId) return STEPS[0].path
-  if (to.name === 'send' && !wizard.document) return STEPS[2].path
+  if (to.name === 'review' && !wizard.document) return STEPS[2].path
   return true
 })
 

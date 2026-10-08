@@ -2,13 +2,16 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
+import { resolveApiUrl } from '@/api'
+
 import UiButton from '@/components/ui/UiButton.vue'
 import UiFilterChip from '@/components/ui/UiFilterChip.vue'
 import UiTemplateCard from '@/components/ui/UiTemplateCard.vue'
-import WizardPreview from '@/components/wizard/WizardPreview.vue'
+import PreviewPanel from '@/components/wizard/PreviewPanel.vue'
+import TemplateThumb from '@/components/wizard/TemplateThumb.vue'
 import WizardShell from '@/components/wizard/WizardShell.vue'
 import { useTemplates } from '@/composables/useTemplates'
-import { categoryFilters, categoryOf } from '@/domain/templates'
+import { categoryFilters } from '@/domain/templates'
 import { STEPS, useWizardStore } from '@/stores/wizard'
 
 const router = useRouter()
@@ -18,9 +21,10 @@ const { templates, loading, error, reload } = useTemplates()
 const filter = ref<string>('All')
 const filters = computed(() => categoryFilters(templates.value))
 const visible = computed(() =>
-  templates.value.filter((t) => filter.value === 'All' || categoryOf(t.id) === filter.value),
+  templates.value.filter((t) => filter.value === 'All' || t.category === filter.value),
 )
 const selected = computed(() => templates.value.find((t) => t.id === wizard.templateId) ?? null)
+const sampleUrl = computed(() => (selected.value ? resolveApiUrl(selected.value.sampleUrl) : null))
 
 function toggle(id: string) {
   wizard.selectTemplate(wizard.templateId === id ? null : id)
@@ -67,15 +71,19 @@ async function next() {
       <UiTemplateCard
         v-for="template in visible"
         :key="template.id"
-        :title="template.label"
-        :category="categoryOf(template.id)"
+        :title="template.shortLabel"
+        :category="template.category"
         :active="template.id === wizard.templateId"
         @click="toggle(template.id)"
-      />
+      >
+        <template #thumbnail>
+          <TemplateThumb :url="resolveApiUrl(template.sampleUrl)" />
+        </template>
+      </UiTemplateCard>
     </div>
 
     <template #note>
-      {{ selected ? `${selected.label} selected` : 'No template selected' }}
+      {{ selected ? `${selected.shortLabel} selected` : 'No template selected' }}
     </template>
     <template #actions>
       <UiButton v-if="selected" variant="ghost" @click="wizard.selectTemplate(null)">
@@ -85,7 +93,12 @@ async function next() {
     </template>
 
     <template #preview>
-      <WizardPreview :label="selected ? `Preview · ${selected.label} · sample data` : 'Preview'" />
+      <PreviewPanel
+        :label="selected ? `Preview · ${selected.shortLabel} · sample data` : 'Preview'"
+        :url="sampleUrl"
+        :download-name="selected ? `${selected.shortLabel} sample` : undefined"
+        :reset-key="wizard.templateId"
+      />
     </template>
   </WizardShell>
 </template>

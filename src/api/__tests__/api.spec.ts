@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 
-import { ApiError, documentsApi, signingApi, templatesApi } from '@/api'
+import { ApiError, documentsApi, resolveApiUrl, signingApi, templatesApi } from '@/api'
 
 function mockFetch(status: number, body: unknown) {
   const fn = vi.fn<typeof fetch>(() =>
@@ -109,5 +109,32 @@ describe('api client', () => {
     const form = init?.body as FormData
     expect(form).toBeInstanceOf(FormData)
     expect(form.has('pdf')).toBe(true)
+  })
+
+  it('resolves server-relative sample URLs and leaves absolute ones alone', () => {
+    expect(resolveApiUrl('/api/document/template/invoice/sample.pdf')).toBe(
+      '/api/document/template/invoice/sample.pdf',
+    )
+    expect(resolveApiUrl('https://cdn.example.com/a.pdf')).toBe('https://cdn.example.com/a.pdf')
+  })
+
+  it('peeks the next document number with the organisation context', async () => {
+    const fetchMock = mockFetch(200, {
+      templateId: 'invoice',
+      prefix: 'MHB-I-26',
+      sequence: 1,
+      number: 'MHB-I-26-001',
+    })
+
+    const result = await documentsApi.nextNumber({
+      templateId: 'invoice',
+      organizationId: 'modest-human-brands',
+      organizationName: 'Modest Human Brands',
+    })
+
+    expect(result.number).toBe('MHB-I-26-001')
+    expect(fetchMock.mock.calls[0]?.[0]).toBe(
+      '/api/document/numbering/next?templateId=invoice&organizationId=modest-human-brands&organizationName=Modest+Human+Brands',
+    )
   })
 })

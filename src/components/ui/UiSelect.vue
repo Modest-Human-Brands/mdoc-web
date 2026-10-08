@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="T extends string">
-import { ChevronDown } from 'lucide-vue-next'
+import IconChevronDown from '~icons/lucide/chevron-down'
 import { useId } from 'vue'
 
 const model = defineModel<T>({ required: true })
@@ -27,10 +27,8 @@ const id = useId()
           {{ option }}
         </option>
       </select>
-      <ChevronDown
-        :size="14"
-        :stroke-width="2"
-        class="pointer-events-none absolute right-3 text-light-400"
+      <IconChevronDown
+        class="pointer-events-none absolute right-3 size-3.5 text-light-400"
         aria-hidden="true"
       />
     </div>

@@ -1,11 +1,11 @@
-/** One validation problem reported by the server, e.g. `recipient.email`. */
+import { config } from '@/config'
+
 export interface FieldError {
   field: string
   message: string
   code?: string
 }
 
-/** Thrown for every non-2xx response. `message` is safe to show to users. */
 export class ApiError extends Error {
   readonly status: number
   readonly fields: FieldError[]
@@ -18,10 +18,14 @@ export class ApiError extends Error {
   }
 }
 
-const baseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/+$/, '')
+const baseUrl = config.apiBaseUrl.replace(/\/+$/, '')
 
 export function apiUrl(path: string): string {
   return `${baseUrl}/api${path}`
+}
+
+export function resolveApiUrl(path: string): string {
+  return /^https?:\/\//.test(path) ? path : `${baseUrl}${path}`
 }
 
 type Query = Record<string, string | number | boolean | undefined>
@@ -29,7 +33,6 @@ type Query = Record<string, string | number | boolean | undefined>
 export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
   query?: Query
-  /** Plain objects are sent as JSON; FormData is passed through. */
   body?: unknown
   signal?: AbortSignal
 }
@@ -51,7 +54,6 @@ interface ErrorBody {
 }
 
 async function toApiError(response: Response): Promise<ApiError> {
-  // Validation failures: { data: { errors: [{ field, message, code }] } }; others: statusMessage.
   let message = response.statusText || `Request failed (${response.status})`
   let fields: FieldError[] = []
   try {
@@ -64,9 +66,7 @@ async function toApiError(response: Response): Promise<ApiError> {
       const detail = data.statusMessage ?? data.message
       if (detail) message = detail
     }
-  } catch {
-    // Non-JSON error body: keep the status text.
-  }
+  } catch {}
   return new ApiError(response.status, message, fields)
 }
 

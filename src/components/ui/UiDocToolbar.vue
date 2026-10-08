@@ -1,7 +1,11 @@
 <script setup lang="ts">
-import { Download, MessageSquare, Printer, Scan, ZoomIn, ZoomOut } from 'lucide-vue-next'
+import IconDownload from '~icons/lucide/download'
+import IconMessageSquare from '~icons/lucide/message-square'
+import IconPrinter from '~icons/lucide/printer'
+import IconScan from '~icons/lucide/scan'
+import IconZoomIn from '~icons/lucide/zoom-in'
+import IconZoomOut from '~icons/lucide/zoom-out'
 
-/** Zoom level in percent. */
 const zoom = defineModel<number>('zoom', { default: 100 })
 
 defineProps<{ downloadDisabled?: boolean }>()
@@ -38,7 +42,7 @@ function zoomBy(delta: number) {
       :disabled="zoom <= MIN_ZOOM"
       @click="zoomBy(-STEP)"
     >
-      <ZoomOut :size="18" :stroke-width="1.5" />
+      <IconZoomOut class="size-4.5 [--icon-stroke:1.5]" aria-hidden="true" />
     </button>
     <span class="w-11 text-center text-xs font-semi-bold text-white" aria-live="polite">
       {{ zoom }}%
@@ -50,17 +54,17 @@ function zoomBy(delta: number) {
       :disabled="zoom >= MAX_ZOOM"
       @click="zoomBy(STEP)"
     >
-      <ZoomIn :size="18" :stroke-width="1.5" />
+      <IconZoomIn class="size-4.5 [--icon-stroke:1.5]" aria-hidden="true" />
     </button>
     <button type="button" :class="buttonClass" aria-label="Fit page" @click="emit('fit')">
-      <Scan :size="18" :stroke-width="1.5" />
+      <IconScan class="size-4.5 [--icon-stroke:1.5]" aria-hidden="true" />
     </button>
     <span class="h-5 w-px bg-dark-600" aria-hidden="true" />
     <button type="button" :class="buttonClass" aria-label="Comment" @click="emit('comment')">
-      <MessageSquare :size="18" :stroke-width="1.5" />
+      <IconMessageSquare class="size-4.5 [--icon-stroke:1.5]" aria-hidden="true" />
     </button>
     <button type="button" :class="buttonClass" aria-label="Print" @click="emit('print')">
-      <Printer :size="18" :stroke-width="1.5" />
+      <IconPrinter class="size-4.5 [--icon-stroke:1.5]" aria-hidden="true" />
     </button>
     <button
       type="button"
@@ -69,7 +73,7 @@ function zoomBy(delta: number) {
       :disabled="downloadDisabled"
       @click="emit('download')"
     >
-      <Download :size="18" :stroke-width="1.5" />
+      <IconDownload class="size-4.5 [--icon-stroke:1.5]" aria-hidden="true" />
     </button>
   </div>
 </template>

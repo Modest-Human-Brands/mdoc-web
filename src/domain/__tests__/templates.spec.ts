@@ -3,21 +3,25 @@ import { describe, expect, it } from 'vite-plus/test'
 import type { TemplateSummary } from '@/api'
 import templates from '@/test/fixtures/templates.json'
 
-import { categoryFilters, categoryOf } from '../templates'
+import { categoryFilters } from '../templates'
 
-describe('categories', () => {
-  it('maps known ids and falls back to Other', () => {
-    expect(categoryOf('invoice')).toBe('Billing')
-    expect(categoryOf('shoot-contract')).toBe('Contract')
-    expect(categoryOf('brand-new-template')).toBe('Other')
-  })
-
-  it('builds filter chips from the real template list, skipping empty categories', () => {
+describe('categoryFilters', () => {
+  it('builds chips from the categories the server reports (real template list)', () => {
     expect(categoryFilters(templates as TemplateSummary[])).toEqual([
       { id: 'All', count: 5 },
+      { id: 'Contracts', count: 2 },
+      { id: 'Certificates', count: 1 },
       { id: 'Billing', count: 2 },
-      { id: 'Contract', count: 2 },
-      { id: 'Certificate', count: 1 },
     ])
+  })
+
+  it('shows only All when there are no templates', () => {
+    expect(categoryFilters([])).toEqual([{ id: 'All', count: 0 }])
+  })
+
+  it('picks up a category the frontend has never heard of', () => {
+    const extra = { ...(templates[0] as TemplateSummary), id: 'new', category: 'Legal' }
+
+    expect(categoryFilters([extra]).map((c) => c.id)).toEqual(['All', 'Legal'])
   })
 })

@@ -1,26 +1,36 @@
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
+import { useNotForm } from 'notform'
 
 import {
   ApiError,
+  documentsApi,
+  fetchTemplateDetail,
   templatesApi,
   type CreateDocumentResponse,
   type FieldError,
+  type PreviewWarning,
   type TemplateDetail,
 } from '@/api'
+import { config } from '@/config'
+import { buildFormSchema, emptyFormSchema, validateForm } from '@/domain/formSchema'
 import {
   computeTotals,
-  formatDate,
-  formatInr,
   hasBilling,
+  IGNORED_SERVER_DEFAULTS,
   templateDefaults,
 } from '@/domain/invoice'
-import { loadOrganization, saveOrganization, type OrganizationProfile } from '@/domain/organization'
+import {
+  loadOrganization,
+  saveOrganization,
+  toOrganizationOverride,
+  type OrganizationProfile,
+} from '@/domain/organization'
+import { organizationFormSchema } from '@/domain/organizationForm'
 import {
   emptyValue,
-  missingRequired,
-  previewPayload,
-  setPath,
+  ownNumberPath,
+  schemaDefaults,
   stripExcluded,
   textAt,
   toPayload,
@@ -33,17 +43,9 @@ export const STEPS = [
   { name: 'template', label: 'Template', path: '/new/template' },
   { name: 'brand', label: 'Brand', path: '/new/brand' },
   { name: 'details', label: 'Details', path: '/new/details' },
-  { name: 'send', label: 'Send', path: '/new/send' },
+  { name: 'review', label: 'Review & download', path: '/new/review' },
 ] as const
 
-export interface EmailDraft {
-  to: string
-  cc: string
-  subject: string
-  message: string
-}
-
-/** Notion ids the API requires on creation; typed once and remembered on this device. */
 export interface OwnerIds {
   userId: string
   contactId: string
@@ -52,7 +54,6 @@ export interface OwnerIds {
 
 const DRAFT_KEY = 'mdoc.draft'
 const IDS_KEY = 'mdoc.ids'
-const SEQ_KEY = 'mdoc.invoiceSeq'
 
 interface Draft {
   templateId: string | null
@@ -71,14 +72,7 @@ function read<T>(key: string): T | null {
 function write(key: string, value: unknown) {
   try {
     localStorage.setItem(key, JSON.stringify(value))
-  } catch {
-    // Best-effort persistence.
-  }
-}
-
-function readSeq(): number {
-  const value = Number.parseInt(localStorage.getItem(SEQ_KEY) ?? '', 10)
-  return Number.isFinite(value) && value > 0 ? value : 1
+  } catch {}
 }
 
 export const useWizardStore = defineStore('wizard', () => {
@@ -86,90 +80,210 @@ export const useWizardStore = defineStore('wizard', () => {
 
   const templateId = ref<string | null>(saved?.templateId ?? null)
   const template = ref<TemplateDetail | null>(null)
-  /** Raw form state (strings while typing) shaped like the template's schema. */
-  const values = ref<Values>(saved?.values ?? {})
-  const organization = ref<OrganizationProfile>(loadOrganization())
+  const schema = computed(() => (template.value ? stripExcluded(template.value.schema) : null))
+  const formSchema = computed(() =>
+    schema.value ? buildFormSchema(schema.value) : emptyFormSchema,
+  )
+
+  const form = useNotForm({
+    schema: () => formSchema.value,
+    initialValues: saved?.values ?? {},
+  })
+  const values = form.values as Values
+
+  const organizationForm = useNotForm({
+    schema: organizationFormSchema,
+    initialValues: loadOrganization(),
+  })
+  const organization = organizationForm.values as OrganizationProfile
   const organizationSaved = ref(true)
   const ids = ref<OwnerIds>({
-    userId: '',
-    contactId: '',
-    projectId: '',
+    userId: config.userId,
+    contactId: config.contactId,
+    projectId: config.projectId,
     ...read<Partial<OwnerIds>>(IDS_KEY),
   })
   const document = ref<CreateDocumentResponse | null>(null)
   const serverErrors = ref<FieldError[]>([])
-  const email = ref<EmailDraft>({ to: '', cc: '', subject: '', message: '' })
 
-  const schema = computed(() => (template.value ? stripExcluded(template.value.schema) : null))
-  const totals = computed(() => computeTotals(values.value))
-  const showAmountDue = computed(() => hasBilling(values.value))
+  const totals = computed(() => computeTotals(values))
+  const showAmountDue = computed(() => hasBilling(values))
 
-  /** Variables for the preview: user input over placeholders, plus the branding preset id. */
+  const organizationOverride = computed(() => toOrganizationOverride(organization))
+
+  const organizationFields = computed<Values>(() =>
+    organizationOverride.value
+      ? { organization: organizationOverride.value }
+      : { organizationId: organization.id },
+  )
+
   const previewVariables = computed<Values>(() => ({
-    ...(schema.value ? previewPayload(schema.value, values.value) : {}),
-    organizationId: organization.value.id,
+    ...((schema.value ? toPayload(schema.value, values) : undefined) as Values | undefined),
+    ...organizationFields.value,
   }))
 
-  /** Problems that block creation: schema `required` plus the owner ids. */
   const problems = computed<Problem[]>(() => {
-    const list = schema.value ? missingRequired(schema.value, values.value) : []
-    if (!ids.value.userId.trim()) list.push({ path: 'ids.userId', message: 'User ID is required' })
+    const list = schema.value ? validateForm(formSchema.value, values) : []
+    if (!ids.value.userId.trim()) {
+      list.push({
+        path: 'ids.userId',
+        kind: 'required',
+        message: 'User ID is not configured',
+      })
+    }
     if (!ids.value.contactId.trim()) {
-      list.push({ path: 'ids.contactId', message: 'Contact ID is required' })
+      list.push({
+        path: 'ids.contactId',
+        kind: 'required',
+        message: 'Contact ID is not configured',
+      })
     }
     return list
   })
 
-  /** Path → message, from client checks only shown after a failed attempt, plus server errors. */
-  const fieldErrors = computed<Record<string, string>>(() => {
-    const result: Record<string, string> = {}
+  const idsReady = computed(
+    () => ids.value.userId.trim() !== '' && ids.value.contactId.trim() !== '',
+  )
+
+  const clientErrors = computed<Record<string, string>>(() =>
+    Object.fromEntries(
+      problems.value.filter((p) => p.kind === 'invalid').map((p) => [p.path, p.hint ?? p.message]),
+    ),
+  )
+
+  const previewWarnings = ref<PreviewWarning[]>([])
+
+  const previewHints = computed<Record<string, string>>(() =>
+    Object.fromEntries(
+      previewWarnings.value
+        .filter(
+          (w) =>
+            textAt(
+              values,
+              w.field.split('.').map((p) => (/^\d+$/.test(p) ? Number(p) : p)),
+            ) !== '',
+        )
+        .map((w) => [w.field, w.message]),
+    ),
+  )
+
+  const externalErrors = computed<Record<string, string>>(() => {
+    const result: Record<string, string> = { ...previewHints.value }
     for (const error of serverErrors.value) result[error.field] = error.message
     return result
   })
 
-  /** Called by the template screen once the chosen template's schema is known. */
+  const fieldErrors = computed<Record<string, string>>(() => ({
+    ...previewHints.value,
+    ...clientErrors.value,
+    ...externalErrors.value,
+  }))
+
   function applyTemplate(detail: TemplateDetail) {
     template.value = detail
-    const blank = emptyValue(stripExcluded(detail.schema)) as Values
-    const defaults = templateDefaults(
-      detail.id,
-      organization.value.name || organization.value.id,
-      readSeq(),
+    const stripped = stripExcluded(detail.schema)
+    const blank = emptyValue(stripped) as Values
+    const serverDefaults = schemaDefaults(stripped, IGNORED_SERVER_DEFAULTS)
+    form.reset(
+      withDefaults(
+        withDefaults(withDefaults(values, templateDefaults(detail.id)), serverDefaults),
+        blank,
+      ) as Values,
     )
-    values.value = withDefaults(withDefaults(values.value, defaults), blank) as Values
   }
+
+  const lockedNumberPath = ref<string | null>(null)
+  const numberError = ref<string | null>(null)
+  let numberTicket = 0
+
+  const numberPath = computed(() => (schema.value ? ownNumberPath(schema.value) : null))
+
+  function isAutoLocked(path: string): boolean {
+    return lockedNumberPath.value !== null && lockedNumberPath.value === path
+  }
+
+  async function prefillNumber() {
+    const path = numberPath.value
+    const id = templateId.value
+    const mine = ++numberTicket
+    numberError.value = null
+    if (!path || !id) {
+      lockedNumberPath.value = null
+      return
+    }
+    try {
+      const result = await documentsApi.nextNumber({
+        templateId: id,
+        organizationId: organization.id.trim() || undefined,
+        organizationName: organization.name.trim() || undefined,
+      })
+      if (mine !== numberTicket || templateId.value !== id) return
+      if (typeof result.number !== 'string' || result.number === '') {
+        throw new Error('The server returned no number.')
+      }
+      form.setValue(path.join('.'), result.number)
+      lockedNumberPath.value = path.join('.')
+    } catch (error) {
+      if (mine !== numberTicket) return
+      lockedNumberPath.value = null
+      numberError.value = error instanceof Error ? error.message : 'Could not get the next number.'
+    }
+  }
+
+  const templateError = ref<string | null>(null)
 
   function selectTemplate(id: string | null) {
     if (templateId.value === id) return
     templateId.value = id
     template.value = null
-    values.value = {}
+    templateError.value = null
+    lockedNumberPath.value = null
+    numberError.value = null
+    form.reset({})
     document.value = null
     serverErrors.value = []
   }
 
+  async function loadTemplate(id: string) {
+    const detail = await fetchTemplateDetail(id)
+    selectTemplate(id)
+    applyTemplate(detail)
+    await prefillNumber()
+    return detail
+  }
+
+  const preview = ref<{
+    loading: boolean
+    error: string | null
+    ready: boolean
+    pageCount: number
+  }>({
+    loading: false,
+    error: null,
+    ready: false,
+    pageCount: 1,
+  })
+
   function setValue(path: (string | number)[], value: unknown) {
-    values.value = setPath(values.value, path, value) as Values
+    form.setValue(path.join('.'), value)
     serverErrors.value = serverErrors.value.filter((e) => e.field !== path.join('.'))
   }
 
-  function setPreviewErrors(errors: FieldError[]) {
-    serverErrors.value = errors
+  function setPreviewWarnings(warnings: PreviewWarning[]) {
+    previewWarnings.value = warnings
   }
 
   function saveOrganizationProfile() {
-    saveOrganization(organization.value)
+    saveOrganization(organization)
     organizationSaved.value = true
   }
 
-  /** Creates the PDF + Notion record. Edits afterwards invalidate it (the API cannot patch `data`). */
   async function createDocument(signal?: AbortSignal) {
     if (!templateId.value || !schema.value) throw new Error('Pick a template first.')
     serverErrors.value = []
-    const data = toPayload(schema.value, values.value) as Values
-    const name =
-      textAt(data, ['project', 'invoiceNumber']) ||
-      `${templateId.value}-${new Date().toISOString().slice(0, 10)}`
+    const data = toPayload(schema.value, values) as Values
+    const numbered = numberPath.value ? textAt(data, numberPath.value) : ''
+    const name = numbered || `${templateId.value}-${new Date().toISOString().slice(0, 10)}`
     write(IDS_KEY, ids.value)
 
     try {
@@ -179,9 +293,11 @@ export const useWizardStore = defineStore('wizard', () => {
           template: templateId.value,
           userId: ids.value.userId.trim(),
           contactId: ids.value.contactId.trim(),
-          organizationId: organization.value.id,
+          ...(organizationOverride.value ? {} : { organizationId: organization.id }),
           ...(ids.value.projectId.trim() ? { projectId: ids.value.projectId.trim() } : {}),
-          data,
+          data: organizationOverride.value
+            ? { ...data, organization: organizationOverride.value }
+            : data,
         },
         signal,
       )
@@ -190,59 +306,32 @@ export const useWizardStore = defineStore('wizard', () => {
       throw error
     }
 
-    if (templateId.value === 'invoice') {
-      try {
-        localStorage.setItem(SEQ_KEY, String(readSeq() + 1))
-      } catch {
-        // Best-effort counter.
-      }
-    }
-    email.value = buildEmail(data)
     return document.value
-  }
-
-  function buildEmail(data: Values): EmailDraft {
-    const recipientName = textAt(data, ['recipient', 'name'])
-    const title = textAt(data, ['project', 'title'])
-    const number = document.value?.name ?? ''
-    const due = formatDate(textAt(data, ['dueDate']))
-    const sender = organization.value.name || organization.value.legalName
-    const label = template.value?.label ?? 'document'
-    const amount = showAmountDue.value
-      ? ` The amount due is ${formatInr(totals.value.amountDue)}${due ? `, payable by ${due}` : ''}.`
-      : ''
-    return {
-      to: textAt(data, ['recipient', 'email']),
-      cc: organization.value.billingEmail,
-      subject: `${label} ${number}${title ? ` · ${title}` : ''}`.trim(),
-      message: [
-        `Hi ${recipientName || 'there'},`,
-        '',
-        `Please find attached ${label.toLowerCase()} ${number}${title ? ` for ${title}` : ''}.${amount}`,
-        '',
-        'Thanks,',
-        sender,
-      ].join('\n'),
-    }
   }
 
   function reset() {
     templateId.value = null
     template.value = null
-    values.value = {}
+    form.reset({})
     document.value = null
     serverErrors.value = []
-    email.value = { to: '', cc: '', subject: '', message: '' }
   }
 
-  // Edits after creation make the generated PDF stale.
+  let numberTimer: ReturnType<typeof setTimeout> | undefined
+  watch(
+    () => [organization.id, organization.name] as const,
+    () => {
+      clearTimeout(numberTimer)
+      if (numberPath.value) numberTimer = setTimeout(() => void prefillNumber(), 600)
+    },
+  )
+
   watch([values, ids], () => (document.value = null), { deep: true })
-  // `sync` so the flag is accurate right after the profile is assigned.
   watch(organization, () => (organizationSaved.value = false), { deep: true, flush: 'sync' })
 
   watch(
     [templateId, values],
-    () => write(DRAFT_KEY, { templateId: templateId.value, values: values.value } satisfies Draft),
+    () => write(DRAFT_KEY, { templateId: templateId.value, values: values } satisfies Draft),
     { deep: true },
   )
 
@@ -251,21 +340,34 @@ export const useWizardStore = defineStore('wizard', () => {
     template,
     schema,
     values,
+    form,
+    formSchema,
     organization,
+    organizationForm,
     organizationSaved,
     ids,
     document,
     serverErrors,
+    clientErrors,
     fieldErrors,
-    email,
+    externalErrors,
     totals,
     showAmountDue,
+    organizationOverride,
     previewVariables,
     problems,
+    idsReady,
     applyTemplate,
+    prefillNumber,
+    isAutoLocked,
+    numberError,
     selectTemplate,
+    loadTemplate,
+    templateError,
+    preview,
     setValue,
-    setPreviewErrors,
+    setPreviewWarnings,
+    previewHints,
     saveOrganizationProfile,
     createDocument,
     reset,

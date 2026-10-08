@@ -1,0 +1,56 @@
+{
+  "pdfBase64": "<omitted>",
+  "pageCount": 2,
+  "warnings": [
+    {
+      "field": "recipient.address",
+      "message": "Invalid input: expected string, received undefined",
+      "code": "invalid_type"
+    },
+    {
+      "field": "recipient.email",
+      "message": "Invalid recipient email",
+      "code": "invalid_format"
+    },
+    {
+      "field": "recipient.phone",
+      "message": "Invalid input: expected string, received undefined",
+      "code": "invalid_type"
+    },
+    {
+      "field": "project.quoteNumber",
+      "message": "Invalid input: expected string, received undefined",
+      "code": "invalid_type"
+    },
+    {
+      "field": "project.quoteDate",
+      "message": "Invalid input: expected date, received Date",
+      "code": "invalid_type"
+    },
+    {
+      "field": "project.invoiceNumber",
+      "message": "Invalid input: expected string, received undefined",
+      "code": "invalid_type"
+    },
+    {
+      "field": "project.invoiceDate",
+      "message": "Invalid input: expected date, received Date",
+      "code": "invalid_type"
+    },
+    {
+      "field": "project.shootDate",
+      "message": "Invalid input: expected date, received Date",
+      "code": "invalid_type"
+    },
+    {
+      "field": "project.shootLocation",
+      "message": "Invalid input: expected string, received undefined",
+      "code": "invalid_type"
+    },
+    {
+      "field": "project.deliverables",
+      "message": "Invalid input: expected array, received undefined",
+      "code": "invalid_type"
+    }
+  ]
+}

@@ -1,7 +1,14 @@
 import { onMounted, ref, toValue, watch, type MaybeRefOrGetter } from 'vue'
+import { useRouter } from 'vue-router'
 
-import { ApiError, templatesApi, type TemplateDetail, type TemplateSummary } from '@/api'
-import { useWizardStore } from '@/stores/wizard'
+import {
+  ApiError,
+  fetchTemplateDetail,
+  templatesApi,
+  type TemplateDetail,
+  type TemplateSummary,
+} from '@/api'
+import { STEPS, useWizardStore } from '@/stores/wizard'
 
 export function errorMessage(error: unknown): string {
   return error instanceof ApiError || error instanceof Error
@@ -31,37 +38,17 @@ export function useTemplates() {
   return { templates, loading, error, reload: load }
 }
 
-const detailCache = new Map<string, TemplateDetail>()
-const inflight = new Map<string, Promise<TemplateDetail>>()
-
-/** Cached, de-duplicated fetch: concurrent callers for one id share a single request. */
-function fetchDetail(id: string): Promise<TemplateDetail> {
-  const cached = detailCache.get(id)
-  if (cached) return Promise.resolve(cached)
-  const pending = inflight.get(id)
-  if (pending) return pending
-
-  const request = templatesApi
-    .get(id)
-    .then((loaded) => {
-      detailCache.set(id, loaded)
-      return loaded
-    })
-    .finally(() => inflight.delete(id))
-  inflight.set(id, request)
-  return request
-}
-
-/** Loads one template's variables/signer fields; results are cached for the session. */
 export function useTemplateDetail(id: MaybeRefOrGetter<string | null>) {
   const detail = ref<TemplateDetail | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
+  const status = ref<number | null>(null)
   let latest = 0
 
   async function load(templateId: string | null) {
     const ticket = ++latest
     error.value = null
+    status.value = null
     if (!templateId) {
       detail.value = null
       loading.value = false
@@ -69,10 +56,13 @@ export function useTemplateDetail(id: MaybeRefOrGetter<string | null>) {
     }
     loading.value = true
     try {
-      const loaded = await fetchDetail(templateId)
+      const loaded = await fetchTemplateDetail(templateId)
       if (ticket === latest) detail.value = loaded
     } catch (e) {
-      if (ticket === latest) error.value = errorMessage(e)
+      if (ticket === latest) {
+        error.value = errorMessage(e)
+        status.value = e instanceof ApiError ? e.status : null
+      }
     } finally {
       if (ticket === latest) loading.value = false
     }
@@ -80,17 +70,38 @@ export function useTemplateDetail(id: MaybeRefOrGetter<string | null>) {
 
   watch(() => toValue(id), load, { immediate: true })
 
-  return { detail, loading, error }
+  return { detail, loading, error, status }
 }
 
-/** Keeps the store's schema and form defaults in sync with the selected template. */
 export function useActiveTemplate() {
   const wizard = useWizardStore()
+  const router = useRouter()
   const result = useTemplateDetail(() => wizard.templateId)
+
   watch(
     result.detail,
     (detail) => {
-      if (detail && detail.id === wizard.templateId) wizard.applyTemplate(detail)
+      if (detail && detail.id === wizard.templateId) {
+        wizard.applyTemplate(detail)
+        void wizard.prefillNumber()
+      }
+    },
+    { immediate: true },
+  )
+
+  watch(
+    [result.error, result.status],
+    ([error, status]) => {
+      if (!error || !wizard.templateId) {
+        wizard.templateError = null
+        return
+      }
+      if (status === 404) {
+        wizard.selectTemplate(null)
+        void router.replace(STEPS[0].path)
+        return
+      }
+      wizard.templateError = error
     },
     { immediate: true },
   )

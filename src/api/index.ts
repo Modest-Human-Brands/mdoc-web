@@ -1,6 +1,7 @@
-export { ApiError, type FieldError } from './http'
+export { ApiError, resolveApiUrl, type FieldError } from './http'
 export { documentsApi } from './documents'
 export { healthApi } from './health'
 export { signingApi } from './signing'
 export { templatesApi } from './templates'
 export * from './types'
+export { fetchTemplateDetail, clearTemplateCache } from './templateCache'

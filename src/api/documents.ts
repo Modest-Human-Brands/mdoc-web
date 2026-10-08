@@ -1,6 +1,7 @@
 import { apiUrl, request, requestBlob } from './http'
 import type {
   DocumentDetail,
+  NumberingResponse,
   DocumentList,
   UpdateDocumentRequest,
   UpdateDocumentResponse,
@@ -9,7 +10,19 @@ import type {
 
 const docPath = (id: string) => `/document/${encodeURIComponent(id)}`
 
+export interface NumberingQuery {
+  templateId: string
+  organizationId?: string
+  organizationName?: string
+}
+
 export const documentsApi = {
+  nextNumber: (query: NumberingQuery, signal?: AbortSignal) =>
+    request<NumberingResponse>('/document/numbering/next', {
+      query: { ...query },
+      signal,
+    }),
+
   list: (params: { limit?: number; offset?: number } = {}, signal?: AbortSignal) =>
     request<DocumentList>('/document', { query: params, signal }),
 
@@ -18,11 +31,9 @@ export const documentsApi = {
   update: (id: string, body: UpdateDocumentRequest, signal?: AbortSignal) =>
     request<UpdateDocumentResponse>(docPath(id), { method: 'PATCH', body, signal }),
 
-  /** Raw PDF, or a PNG thumbnail with `type: 'image'`. */
   content: (id: string, opts: { type?: 'image' } = {}, signal?: AbortSignal) =>
     requestBlob(`${docPath(id)}/content`, { query: opts, signal }),
 
-  /** URL for <a download> / <iframe>; the browser fetches it directly. */
   contentUrl: (id: string, opts: { download?: boolean; type?: 'image' } = {}) => {
     const qs = new URLSearchParams()
     if (opts.download) qs.set('download', 'true')

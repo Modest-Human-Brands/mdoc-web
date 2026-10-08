@@ -1,0 +1,15 @@
+# Keep the build context small and, above all, keep local secrets out of the image:
+# Vite would otherwise read .env.local during `bun run build` and bake the values into the bundle.
+node_modules
+dist
+.git
+.github
+.husky
+.vscode
+.claude
+figma
+postman
+.env
+.env.*
+!.env.example
+*.log

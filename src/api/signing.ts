@@ -11,7 +11,6 @@ import type {
 
 const docPath = (id: string) => `/document/${encodeURIComponent(id)}`
 
-/** Signer sessions and the signing pipeline. Client only: there is no UI for these yet. */
 export const signingApi = {
   createSession: (id: string, body: CreateSessionRequest, signal?: AbortSignal) =>
     request<CreateSessionResponse>(`${docPath(id)}/session`, { method: 'POST', body, signal }),

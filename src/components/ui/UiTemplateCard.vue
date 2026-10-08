@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { Check, FileText } from 'lucide-vue-next'
+import IconCheck from '~icons/lucide/check'
+import IconFileText from '~icons/lucide/file-text'
 
 defineProps<{
   title: string
@@ -21,13 +22,13 @@ defineProps<{
   >
     <span class="relative flex h-37 w-full items-center justify-center rounded-md bg-dark-600">
       <slot name="thumbnail">
-        <FileText :size="64" :stroke-width="1" class="text-light-500" aria-hidden="true" />
+        <IconFileText class="size-16 text-light-500 [--icon-stroke:1]" aria-hidden="true" />
       </slot>
       <span
         v-if="active"
         class="absolute top-2 right-2 flex size-5.5 items-center justify-center rounded-full bg-accent-500 text-white"
       >
-        <Check :size="12" :stroke-width="3" aria-hidden="true" />
+        <IconCheck class="size-3 [--icon-stroke:3]" aria-hidden="true" />
         <span class="sr-only">Selected</span>
       </span>
     </span>

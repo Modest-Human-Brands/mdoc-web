@@ -6,7 +6,6 @@ import { useActiveTemplate } from '@/composables/useTemplates'
 import { STEPS, useWizardStore } from '@/stores/wizard'
 
 defineProps<{
-  /** Zero-based index of the current step. */
   step: number
   title: string
   subtitle: string
@@ -46,7 +45,7 @@ async function cancel() {
 
       <UiStepper :steps="STEPS.map((s) => s.label)" :current="step" />
 
-      <div class="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto pr-1">
+      <div class="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto pr-1 scrollbar-none">
         <div class="flex flex-col gap-1">
           <h2 class="text-xl font-bold tracking-tight text-white">{{ title }}</h2>
           <p class="text-sm text-light-400">{{ subtitle }}</p>
@@ -57,8 +56,12 @@ async function cancel() {
       <footer class="flex flex-col gap-4">
         <hr class="h-px border-0 bg-dark-600" />
         <div class="flex min-h-9.25 items-center justify-between gap-4">
-          <p class="text-sm text-light-400" role="status"><slot name="note" /></p>
-          <div class="flex items-center gap-2"><slot name="actions" /></div>
+          <p class="text-sm text-light-400" role="status">
+            <slot name="note" />
+          </p>
+          <div class="flex items-center gap-2">
+            <slot name="actions" />
+          </div>
         </div>
       </footer>
     </section>

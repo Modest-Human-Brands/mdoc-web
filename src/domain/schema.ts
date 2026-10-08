@@ -1,6 +1,5 @@
 import type { JsonSchema } from '@/api'
 
-/** Root properties handled outside the form (resolved on the server from `organizationId`). */
 export const EXCLUDED_ROOT_KEYS: readonly string[] = ['organization']
 
 export type Values = Record<string, unknown>
@@ -13,7 +12,6 @@ export function isNumeric(schema: JsonSchema): boolean {
   return schema.type === 'number' || schema.type === 'integer'
 }
 
-/** Properties in design order (`x-order`, then declaration order). */
 export function orderedProperties(schema: JsonSchema): [string, JsonSchema][] {
   const entries = Object.entries(schema.properties ?? {})
   return entries
@@ -22,7 +20,6 @@ export function orderedProperties(schema: JsonSchema): [string, JsonSchema][] {
     .map(({ entry }) => entry)
 }
 
-/** "recipient.email" → "Recipient email"; used when the server sends only a path. */
 export function labelFromPath(path: string): string {
   const last = path.split('.').pop() ?? path
   const spaced = last.replace(/([a-z0-9])([A-Z])/g, '$1 $2').replace(/[-_]+/g, ' ')
@@ -38,13 +35,11 @@ export function getPath(data: unknown, path: (string | number)[]): unknown {
   return current
 }
 
-/** Reads a leaf as text; anything that is not a string or number becomes ''. */
 export function textAt(data: unknown, path: (string | number)[]): string {
   const value = getPath(data, path)
   return typeof value === 'string' || typeof value === 'number' ? String(value) : ''
 }
 
-/** Immutable update; creates missing objects/arrays on the way. */
 export function setPath(data: unknown, path: (string | number)[], value: unknown): unknown {
   const [head, ...rest] = path
   if (head === undefined) return value
@@ -55,7 +50,6 @@ export function setPath(data: unknown, path: (string | number)[], value: unknown
   return base
 }
 
-/** Blank form state: strings are '', arrays hold one empty item so the user sees a row. */
 export function emptyValue(schema: JsonSchema): unknown {
   if (isObjectSchema(schema)) {
     return Object.fromEntries(
@@ -67,7 +61,6 @@ export function emptyValue(schema: JsonSchema): unknown {
   return ''
 }
 
-/** Deep-merges `defaults` under `values`: defaults only fill blanks (undefined or ''). */
 export function withDefaults(values: unknown, defaults: unknown): unknown {
   if (Array.isArray(defaults)) {
     if (!Array.isArray(values) || values.length === 0) return defaults
@@ -85,51 +78,6 @@ export function withDefaults(values: unknown, defaults: unknown): unknown {
   return values === undefined || values === '' ? defaults : values
 }
 
-/** Overlays `source` onto `base` for keys present in source; nested objects recurse. */
-export function overlay(base: unknown, source: unknown): unknown {
-  if (source === undefined) return base
-  if (
-    base !== null &&
-    typeof base === 'object' &&
-    !Array.isArray(base) &&
-    source !== null &&
-    typeof source === 'object' &&
-    !Array.isArray(source)
-  ) {
-    const result: Values = { ...(base as Values) }
-    for (const [key, value] of Object.entries(source as Values)) {
-      result[key] = overlay(result[key], value)
-    }
-    return result
-  }
-  return source
-}
-
-function today(): string {
-  return new Date().toISOString().slice(0, 10)
-}
-
-/** Placeholder content so a preview renders before the user has typed anything. */
-export function sampleValue(schema: JsonSchema, key = ''): unknown {
-  if (isObjectSchema(schema)) {
-    return Object.fromEntries(
-      orderedProperties(schema).map(([k, child]) => [k, sampleValue(child, k)]),
-    )
-  }
-  if (schema.type === 'array') return schema.items ? [sampleValue(schema.items, key)] : []
-  if (schema.enum && schema.enum.length > 0) return schema.enum[0]
-  if (schema.type === 'boolean') return false
-  if (isNumeric(schema)) return schema.minimum ?? 0
-  if (schema.format === 'date' || schema.format === 'date-time') return today()
-  if (schema.format === 'email') return 'name@example.com'
-  if (/phone/i.test(key)) return '+91 00000 00000'
-  return schema.title ? `${schema.title}` : 'Sample text'
-}
-
-/**
- * Converts form state to the API shape: numbers are parsed, blanks become `undefined` (dropped on
- * JSON serialisation so defaults can fill them), strings are trimmed.
- */
 export function toPayload(schema: JsonSchema, value: unknown): unknown {
   if (isObjectSchema(schema)) {
     const source = value !== null && typeof value === 'object' ? (value as Values) : {}
@@ -160,12 +108,44 @@ export function toPayload(schema: JsonSchema, value: unknown): unknown {
   return value ?? undefined
 }
 
-/** The payload the renderer receives while editing: user input over placeholders. */
-export function previewPayload(schema: JsonSchema, values: unknown): Values {
-  const filtered = stripExcluded(schema)
-  const sample = sampleValue(filtered)
-  const payload = toPayload(filtered, values)
-  return overlay(sample, payload) as Values
+export function autoPaths(schema: JsonSchema, prefix: string[] = []): string[][] {
+  if (isObjectSchema(schema)) {
+    return orderedProperties(schema).flatMap(([key, child]) => autoPaths(child, [...prefix, key]))
+  }
+  return schema['x-auto'] && schema.type !== 'array' ? [prefix] : []
+}
+
+export function ownNumberPath(schema: JsonSchema): string[] | null {
+  const paths = autoPaths(schema)
+  return paths.find((p) => p[p.length - 1] === 'invoiceNumber') ?? paths[0] ?? null
+}
+
+export function schemaDefaults(
+  schema: JsonSchema,
+  overrides: Record<string, string> = {},
+  prefix: string[] = [],
+): Values {
+  const result: Values = {}
+  for (const [key, child] of orderedProperties(schema)) {
+    const path = [...prefix, key]
+    const dotted = path.join('.')
+    if (dotted in overrides) {
+      result[key] = overrides[dotted]
+    } else if (isObjectSchema(child)) {
+      const nested = schemaDefaults(child, overrides, path)
+      if (Object.keys(nested).length > 0) result[key] = nested
+    } else if (child.type !== 'array') {
+      const value = child.default
+      if (typeof value === 'boolean') result[key] = value
+      else if (typeof value === 'string' || typeof value === 'number') result[key] = String(value)
+    }
+  }
+  return result
+}
+
+export function singularLabel(title: string): string {
+  const text = title.replace(/ies$/i, 'y').replace(/s$/i, '')
+  return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
 export function stripExcluded(schema: JsonSchema): JsonSchema {
@@ -181,49 +161,12 @@ export function stripExcluded(schema: JsonSchema): JsonSchema {
 }
 
 export interface Problem {
-  /** Dotted path, e.g. `project.deliverables.0.title`. */
   path: string
   message: string
+  kind: 'required' | 'invalid'
+  hint?: string
 }
 
-function isBlank(value: unknown): boolean {
-  return value === undefined || value === null || (typeof value === 'string' && value.trim() === '')
-}
-
-/** Client-side check of the schema's `required` lists, so users fix gaps before "Review & send". */
-export function missingRequired(
-  schema: JsonSchema,
-  values: unknown,
-  path: string[] = [],
-): Problem[] {
-  const target = path.length === 0 ? stripExcluded(schema) : schema
-  if (isObjectSchema(target)) {
-    const source = values !== null && typeof values === 'object' ? (values as Values) : {}
-    return orderedProperties(target).flatMap(([key, child]) => {
-      const here = [...path, key]
-      if (
-        target.required?.includes(key) &&
-        !isObjectSchema(child) &&
-        !hasValue(child, source[key])
-      ) {
-        return [
-          { path: here.join('.'), message: `${child.title ?? labelFromPath(key)} is required` },
-        ]
-      }
-      return missingRequired(child, source[key], here)
-    })
-  }
-  if (target.type === 'array' && target.items) {
-    return (Array.isArray(values) ? values : []).flatMap((item, index) =>
-      isBlankItem(target.items!, item)
-        ? []
-        : missingRequired(target.items!, item, [...path, String(index)]),
-    )
-  }
-  return []
-}
-
-/** True when a converted value contains at least one non-empty string. */
 function hasText(value: unknown): boolean {
   if (typeof value === 'string') return value.length > 0
   if (Array.isArray(value)) return value.some(hasText)
@@ -231,25 +174,6 @@ function hasText(value: unknown): boolean {
   return false
 }
 
-/**
- * A row counts as filled only once the user has typed some text in it. Defaults such as
- * `quantity: 1` must not turn an untouched row into a "filled" one.
- */
-function isBlankItem(schema: JsonSchema, value: unknown): boolean {
+export function isBlankRow(schema: JsonSchema, value: unknown): boolean {
   return !hasText(toPayload(schema, value))
-}
-
-function hasValue(schema: JsonSchema, value: unknown): boolean {
-  if (schema.type === 'array') {
-    return (Array.isArray(value) ? value : []).some((item) =>
-      schema.items ? !isBlankItem(schema.items, item) : !isBlank(item),
-    )
-  }
-  if (isObjectSchema(schema)) return toPayload(schema, value) !== undefined
-  if (schema.type === 'boolean') return typeof value === 'boolean'
-  return !isBlank(value)
-}
-
-export function problemMap(problems: Problem[]): Record<string, string> {
-  return Object.fromEntries(problems.map((p) => [p.path, p.message]))
 }

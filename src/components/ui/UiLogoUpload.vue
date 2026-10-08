@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ImagePlus } from 'lucide-vue-next'
+import IconImagePlus from '~icons/lucide/image-plus'
 import { ref } from 'vue'
+
+import { rasterizeLogo } from '@/domain/image'
 
 export interface LogoValue {
   name: string
@@ -13,7 +15,7 @@ const MAX_BYTES = 1024 * 1024
 const input = ref<HTMLInputElement | null>(null)
 const error = ref<string | null>(null)
 
-function onPick(event: Event) {
+async function onPick(event: Event) {
   const target = event.target as HTMLInputElement
   const file = target.files?.[0]
   target.value = ''
@@ -27,12 +29,11 @@ function onPick(event: Event) {
     return
   }
   error.value = null
-  const reader = new FileReader()
-  reader.onload = () => {
-    if (typeof reader.result === 'string') model.value = { name: file.name, dataUrl: reader.result }
+  try {
+    model.value = { name: file.name, dataUrl: await rasterizeLogo(file) }
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : 'Could not read that file.'
   }
-  reader.onerror = () => (error.value = 'Could not read that file.')
-  reader.readAsDataURL(file)
 }
 </script>
 
@@ -46,7 +47,11 @@ function onPick(event: Event) {
         class="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white"
       >
         <img v-if="model" :src="model.dataUrl" alt="" class="size-full object-contain" />
-        <ImagePlus v-else :size="18" :stroke-width="1.5" class="text-dark-600" aria-hidden="true" />
+        <IconImagePlus
+          v-else
+          class="size-4.5 text-dark-600 [--icon-stroke:1.5]"
+          aria-hidden="true"
+        />
       </span>
       <span class="flex min-w-0 flex-1 flex-col gap-0.5">
         <span class="truncate text-sm font-semi-bold text-white">

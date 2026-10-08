@@ -1,10 +1,10 @@
 <script setup lang="ts">
+import { NotForm } from 'notform'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import UiButton from '@/components/ui/UiButton.vue'
 import UiCallout from '@/components/ui/UiCallout.vue'
-import UiTextField from '@/components/ui/UiTextField.vue'
 import SchemaFields from '@/components/wizard/SchemaFields.vue'
 import WizardPreview from '@/components/wizard/WizardPreview.vue'
 import WizardShell from '@/components/wizard/WizardShell.vue'
@@ -26,9 +26,16 @@ const note = computed(() => {
   return `To continue: ${first.message.toLowerCase()}${rest.length > 0 ? ` (+${rest.length} more)` : ''}`
 })
 
+function chooseAnother() {
+  wizard.selectTemplate(null)
+  void router.push(STEPS[0].path)
+}
+
 async function next() {
-  creating.value = true
   createError.value = null
+  const checked = await wizard.form.validate()
+  if (checked.issues) return
+  creating.value = true
   try {
     await wizard.createDocument()
     await router.push(STEPS[3].path)
@@ -50,35 +57,22 @@ async function next() {
         : 'Fill in the fields for this template.'
     "
   >
-    <p v-if="!wizard.schema" class="text-sm text-light-400" role="status">Loading fields…</p>
+    <div
+      v-if="wizard.templateError"
+      class="flex items-center justify-between gap-3 rounded-md bg-alert-600 px-3 py-2 text-sm text-white"
+      role="alert"
+    >
+      Couldn't load this template: {{ wizard.templateError }}
+      <button type="button" class="font-semi-bold underline" @click="chooseAnother">
+        Choose another template
+      </button>
+    </div>
+    <p v-else-if="!wizard.schema" class="text-sm text-light-400" role="status">Loading fields…</p>
 
     <template v-else>
-      <section class="flex flex-col gap-3">
-        <h3 class="text-xs tracking-[0.06em] text-light-400 uppercase">Saving as</h3>
-        <div class="grid grid-cols-2 gap-3">
-          <UiTextField
-            v-model="wizard.ids.userId"
-            label="User ID"
-            placeholder="Notion user id"
-            :error="wizard.fieldErrors.userId"
-          />
-          <UiTextField
-            v-model="wizard.ids.contactId"
-            label="Contact ID"
-            placeholder="Notion contact id"
-            :error="wizard.fieldErrors.contactId"
-          />
-          <UiTextField
-            v-model="wizard.ids.projectId"
-            label="Project ID"
-            hint="optional"
-            placeholder="Notion project id"
-            class="col-span-2"
-          />
-        </div>
-      </section>
-
-      <SchemaFields :schema="wizard.schema" />
+      <NotForm :form="wizard.form" @submit.prevent>
+        <SchemaFields :schema="wizard.schema" />
+      </NotForm>
 
       <UiCallout
         v-if="wizard.showAmountDue"
@@ -94,8 +88,8 @@ async function next() {
     <template #note>{{ note }}</template>
     <template #actions>
       <UiButton variant="ghost" @click="router.push(STEPS[1].path)">Back</UiButton>
-      <UiButton :disabled="creating || !wizard.schema || wizard.problems.length > 0" @click="next">
-        {{ creating ? 'Creating…' : 'Review & send' }}
+      <UiButton :disabled="creating || !wizard.schema || !wizard.idsReady" @click="next">
+        {{ creating ? 'Creating…' : 'Review & download' }}
       </UiButton>
     </template>
 

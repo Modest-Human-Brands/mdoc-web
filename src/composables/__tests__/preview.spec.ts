@@ -1,25 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { effectScope, nextTick, ref } from 'vue'
 
-import { countPdfPages, usePreview } from '../usePreview'
+import { usePreview } from '../usePreview'
 
-const ONE_PAGE = '%PDF-1.4 1 0 obj << /Type /Pages /Count 1 >> 2 0 obj << /Type /Page >>'
-const TWO_PAGES = `${ONE_PAGE} 3 0 obj << /Type /Page >>`
+const ONE_PAGE = '%PDF-1.4 mock'
+const TWO_PAGES = '%PDF-1.4 mock two pages'
 
-function previewResponse(pdf: string) {
-  return new Response(JSON.stringify({ pdfBase64: btoa(pdf) }), {
+function previewResponse(
+  pdf: string,
+  extra: { pageCount?: number; warnings?: { field: string; message: string }[] } = {},
+) {
+  return new Response(JSON.stringify({ pdfBase64: btoa(pdf), pageCount: 1, ...extra }), {
     status: 200,
     headers: { 'content-type': 'application/json' },
   })
 }
-
-describe('countPdfPages', () => {
-  it('counts /Type /Page but not /Pages', () => {
-    expect(countPdfPages(ONE_PAGE)).toBe(1)
-    expect(countPdfPages(TWO_PAGES)).toBe(2)
-    expect(countPdfPages('not a pdf')).toBe(1)
-  })
-})
 
 describe('usePreview', () => {
   beforeEach(() => {
@@ -61,7 +56,32 @@ describe('usePreview', () => {
       variables: { a: '123' },
     })
     expect(preview.url.value).toBe('blob:mock')
-    expect(preview.pages.value).toBe(2)
+    scope.stop()
+  })
+
+  it('uses the API draft mode and exposes pageCount and warnings from the response', async () => {
+    const fetchMock = vi.fn<typeof fetch>(() =>
+      Promise.resolve(
+        previewResponse(TWO_PAGES, {
+          pageCount: 2,
+          warnings: [{ field: 'recipient.email', message: 'Invalid recipient email' }],
+        }),
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const scope = effectScope()
+    const preview = scope.run(() =>
+      usePreview(ref('invoice'), ref({ recipient: { email: 'acc' } })),
+    )!
+
+    await vi.advanceTimersByTimeAsync(500)
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/document/template/preview?draft=true')
+    expect(preview.pageCount.value).toBe(2)
+    expect(preview.warnings.value).toEqual([
+      { field: 'recipient.email', message: 'Invalid recipient email' },
+    ])
+    expect(preview.error.value).toBeNull()
     scope.stop()
   })
 

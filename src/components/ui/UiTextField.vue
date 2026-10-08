@@ -6,20 +6,15 @@ const model = defineModel<string>({ default: '' })
 withDefaults(
   defineProps<{
     label: string
-    /** Small muted text beside the label, e.g. "optional". */
     hint?: string
     placeholder?: string
-    /** Muted text at the end of the input, e.g. "Auto". */
     suffix?: string
-    /** Pill-style quick-fill shown at the end of the input, e.g. "+7 days". */
     badge?: string
     multiline?: boolean
-    /** Right-aligned numeric input. */
     numeric?: boolean
     readonly?: boolean
     type?: 'text' | 'email' | 'tel' | 'date' | 'time' | 'number'
     rows?: number
-    /** Server or client validation message shown under the field. */
     error?: string
   }>(),
   { type: 'text', rows: 5 },
@@ -55,7 +50,7 @@ const id = useId()
         :readonly="readonly"
         :aria-invalid="error ? true : undefined"
         :aria-describedby="error ? `${id}-error` : undefined"
-        class="min-w-0 flex-1 resize-none bg-transparent text-sm text-white outline-none placeholder:text-light-400"
+        class="min-w-0 flex-1 resize-y bg-transparent text-sm text-white outline-none placeholder:text-light-400"
       />
       <input
         v-else

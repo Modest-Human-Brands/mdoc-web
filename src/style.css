@@ -1,12 +1,5 @@
-@import '@fontsource-variable/exo-2';
 @import 'tailwindcss';
 
-/*
- * Design tokens, mirrored 1:1 from the "Modest Human Tokens" Figma collection
- * (code-syntax names kept verbatim). Spacing is the default Tailwind 4px scale,
- * which already equals the Figma `spacing/N` tokens (spacing/4 = 16px = `p-4`).
- * Figma weight variables are one step below CSS weight: semi-bold = 500, bold = 600.
- */
 @theme {
   --color-*: initial;
   --color-transparent: transparent;
@@ -52,8 +45,8 @@
   --color-alert-600: #cc334d;
   --color-alert-soft: #ffe7eb;
 
-  --font-main: 'Exo 2 Variable', 'Exo 2', system-ui, sans-serif;
-  --font-sub: 'Exo 2 Variable', 'Exo 2', system-ui, sans-serif;
+  --font-main: 'Exo 2 Variable', 'Exo 2 fallback', system-ui, sans-serif;
+  --font-sub: 'Exo 2 Variable', 'Exo 2 fallback', system-ui, sans-serif;
   --font-sans: var(--font-main);
 
   --font-weight-light: 300;
@@ -104,7 +97,6 @@
 @layer base {
   :root {
     color-scheme: dark;
-    /* Brand variables (runtime-overridden by the Brand step; used by document preview only). */
     --brand-primary: #111827;
     --brand-accent: var(--color-accent-500);
     --brand-accent-soft: var(--color-accent-soft);
@@ -134,4 +126,16 @@
   button:disabled {
     cursor: not-allowed;
   }
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.icon > g {
+  stroke-width: var(--icon-stroke, 2);
 }

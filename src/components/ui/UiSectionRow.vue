@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { Check, ChevronRight, Plus } from 'lucide-vue-next'
+import IconCheck from '~icons/lucide/check'
+import IconChevronRight from '~icons/lucide/chevron-right'
+import IconPlus from '~icons/lucide/plus'
 
 defineProps<{
   title: string
@@ -24,15 +26,13 @@ defineProps<{
       "
       aria-hidden="true"
     >
-      <Check v-if="complete" :size="11" :stroke-width="2.6" />
-      <Plus v-else :size="10" :stroke-width="2.5" />
+      <IconCheck v-if="complete" class="size-[11px] [--icon-stroke:2.6]" />
+      <IconPlus v-else class="size-2.5 [--icon-stroke:2.5]" />
     </span>
     <span class="flex-1 text-sm font-semi-bold text-white">{{ title }}</span>
     <span class="text-xs text-light-400">{{ summary }}</span>
-    <ChevronRight
-      :size="14"
-      :stroke-width="2"
-      class="text-light-400 transition-transform"
+    <IconChevronRight
+      class="size-3.5 text-light-400 transition-transform"
       :class="expanded ? 'rotate-90' : ''"
       aria-hidden="true"
     />

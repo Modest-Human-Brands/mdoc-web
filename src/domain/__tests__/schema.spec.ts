@@ -1,17 +1,13 @@
 import { describe, expect, it } from 'vite-plus/test'
 
-import type { JsonSchema, TemplateDetail } from '@/api'
+import type { TemplateDetail } from '@/api'
 import invoiceFixture from '@/test/fixtures/invoice.json'
 import internshipFixture from '@/test/fixtures/internship-completion-certificate.json'
 
 import {
   emptyValue,
   getPath,
-  missingRequired,
   orderedProperties,
-  overlay,
-  previewPayload,
-  sampleValue,
   setPath,
   stripExcluded,
   toPayload,
@@ -30,13 +26,26 @@ describe('real server schemas', () => {
       'project',
       'financials',
       'dueDate',
-      'organization',
     ])
   })
 
-  it('excludes the server-resolved organization from the form', () => {
-    expect(Object.keys(stripExcluded(invoice).properties ?? {})).not.toContain('organization')
-    expect(stripExcluded(invoice).required).not.toContain('organization')
+  it('no longer lists organization in the schema (the Brand step owns it)', () => {
+    expect(Object.keys(invoice.properties ?? {})).not.toContain('organization')
+    expect(invoice.required).not.toContain('organization')
+    const withOrg = {
+      ...invoice,
+      properties: { ...invoice.properties, organization: { type: 'object' as const } },
+    }
+    expect(Object.keys(stripExcluded(withOrg).properties ?? {})).not.toContain('organization')
+  })
+
+  it('carries x-auto and default hints', () => {
+    const project = invoice.properties?.project?.properties
+    const financials = invoice.properties?.financials?.properties
+
+    expect(project?.invoiceNumber?.['x-auto']).toBe(true)
+    expect(financials?.taxRate?.default).toBe(18)
+    expect(invoice.properties?.pricingModel?.default).toBe('project')
   })
 
   it('builds blank state with one empty deliverable row', () => {
@@ -74,69 +83,6 @@ describe('toPayload', () => {
   })
 })
 
-describe('previewPayload', () => {
-  it('fills every blank with a placeholder so the server always gets complete objects', () => {
-    const schema = stripExcluded(internship)
-    const form = setPath(emptyValue(schema), ['recipient', 'name'], 'Alex Mercer')
-
-    const payload = previewPayload(schema, form)
-
-    expect(getPath(payload, ['recipient', 'name'])).toBe('Alex Mercer')
-    expect(getPath(payload, ['recipient', 'email'])).toBe('name@example.com')
-    expect(getPath(payload, ['startDate'])).toMatch(/^\d{4}-\d{2}-\d{2}$/)
-    expect(missingRequired(schema, payload)).toEqual([])
-  })
-})
-
-describe('missingRequired', () => {
-  const schema = stripExcluded(internship)
-
-  it('lists blank required fields by path with a readable message', () => {
-    const problems = missingRequired(
-      schema,
-      setPath(emptyValue(schema), ['recipient', 'name'], 'A'),
-    )
-
-    expect(problems.map((p) => p.path)).toContain('recipient.email')
-    expect(problems.map((p) => p.path)).not.toContain('recipient.name')
-    expect(problems.find((p) => p.path === 'recipient.email')?.message).toMatch(/is required$/)
-  })
-
-  it('requires a non-blank row for a required array (the server declares no row-level required)', () => {
-    const inv = stripExcluded(invoice)
-    const blank = emptyValue(inv)
-    expect(missingRequired(inv, blank).map((p) => p.path)).toContain('project.deliverables')
-
-    const half = setPath(blank, ['project', 'deliverables', 0, 'title'], 'Ad film')
-    expect(missingRequired(inv, half).map((p) => p.path)).not.toContain('project.deliverables')
-  })
-
-  it('validates required fields inside array rows when the schema declares them', () => {
-    const rows: JsonSchema = {
-      type: 'object',
-      required: ['lines'],
-      properties: {
-        lines: {
-          type: 'array',
-          items: {
-            type: 'object',
-            required: ['title', 'rate'],
-            properties: { title: { type: 'string' }, rate: { type: 'number' } },
-          },
-        },
-      },
-    }
-    const partial = {
-      lines: [
-        { title: 'Ad film', rate: '' },
-        { title: '', rate: '' },
-      ],
-    }
-
-    expect(missingRequired(rows, partial).map((p) => p.path)).toEqual(['lines.0.rate'])
-  })
-})
-
 describe('helpers', () => {
   it('setPath is immutable and creates arrays for numeric segments', () => {
     const base = { a: { b: ['x'] } }
@@ -154,24 +100,14 @@ describe('helpers', () => {
 
     expect(merged).toEqual({ a: 'dflt', b: 'keep', rows: [{ q: '1' }, { q: '5' }] })
   })
+})
 
-  it('overlay lets present keys win and recurses into objects', () => {
-    expect(overlay({ a: { x: 1, y: 2 }, b: 3 }, { a: { y: 9 } })).toEqual({
-      a: { x: 1, y: 9 },
-      b: 3,
-    })
-  })
+describe('payload from typed values', () => {
+  const schema = stripExcluded(internship)
 
-  it('samples enums, formats and numbers', () => {
-    const schema: JsonSchema = {
-      type: 'object',
-      properties: {
-        kind: { type: 'string', enum: ['project', 'day'] },
-        email: { type: 'string', format: 'email' },
-        qty: { type: 'number', minimum: 1 },
-      },
-    }
+  it('sends what the user typed, even if invalid: the server draft mode reports it as a warning', () => {
+    const form = setPath(emptyValue(schema), ['recipient', 'email'], 'acc')
 
-    expect(sampleValue(schema)).toEqual({ kind: 'project', email: 'name@example.com', qty: 1 })
+    expect((toPayload(schema, form) as Values).recipient).toMatchObject({ email: 'acc' })
   })
 })

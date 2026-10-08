@@ -14,8 +14,13 @@ export const templatesApi = {
   get: (id: string, signal?: AbortSignal) =>
     request<TemplateDetail>(`/document/template/${encodeURIComponent(id)}`, { signal }),
 
-  preview: (body: PreviewRequest, signal?: AbortSignal) =>
-    request<PreviewResponse>('/document/template/preview', { method: 'POST', body, signal }),
+  preview: (body: PreviewRequest, options: { draft?: boolean; signal?: AbortSignal } = {}) =>
+    request<PreviewResponse>('/document/template/preview', {
+      method: 'POST',
+      query: options.draft ? { draft: true } : undefined,
+      body,
+      signal: options.signal,
+    }),
 
   createDocument: (body: CreateDocumentRequest, signal?: AbortSignal) =>
     request<CreateDocumentResponse>('/document/template', { method: 'POST', body, signal }),

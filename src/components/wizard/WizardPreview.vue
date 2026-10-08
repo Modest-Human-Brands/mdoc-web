@@ -11,29 +11,43 @@ defineProps<{ label: string }>()
 
 const wizard = useWizardStore()
 
-// Hold the request until the schema is known: placeholders come from it.
 const previewTemplate = computed(() => (wizard.schema ? wizard.templateId : null))
-const { url, pages, loading, error, fields } = usePreview(
+const { url, pageCount, warnings, loading, error } = usePreview(
   previewTemplate,
   () => wizard.previewVariables,
 )
 
-// Mark the inputs the server rejected while previewing.
-watch(fields, (list) => wizard.setPreviewErrors(list))
+watch(warnings, (list) => wizard.setPreviewWarnings(list), { immediate: true })
+watch(
+  [url, loading, error, pageCount],
+  () =>
+    (wizard.preview = {
+      loading: loading.value,
+      error: error.value,
+      ready: url.value !== null,
+      pageCount: pageCount.value,
+    }),
+  { immediate: true },
+)
 
-const downloadUrl = computed(() =>
-  wizard.document ? documentsApi.contentUrl(wizard.document.id, { download: true }) : null,
+const fetchDownload = computed(() => {
+  const document = wizard.document
+  return document ? () => documentsApi.content(document.id) : undefined
+})
+
+const downloadName = computed(
+  () => wizard.document?.name ?? `${wizard.template?.shortLabel ?? 'Document'} draft`,
 )
 </script>
 
 <template>
   <PreviewPanel
     :label="label"
+    :reset-key="wizard.templateId"
     :url="url"
-    :pages="pages"
     :loading="loading"
     :error="error"
-    :download-url="downloadUrl"
-    :download-name="wizard.document ? `${wizard.document.name}.pdf` : undefined"
+    :fetch-download="fetchDownload"
+    :download-name="downloadName"
   />
 </template>

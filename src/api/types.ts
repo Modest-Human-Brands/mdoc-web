@@ -1,5 +1,3 @@
-/** Types mirror the JSON schemas asserted in postman/collections/MDoc RESTful API. */
-
 export interface HealthResponse {
   status: 'OK'
   version?: string | null
@@ -7,15 +5,15 @@ export interface HealthResponse {
   node: string
 }
 
-// --- Templates -------------------------------------------------------------
-
 export interface TemplateSummary {
   id: string
   label: string
+  shortLabel: string
+  category: string
   description: string
+  sampleUrl: string
 }
 
-/** Leaf values are type hints such as "string" or "email"; objects nest. */
 export type TemplateVariables = { [key: string]: string | TemplateVariables }
 
 export type SignerFieldType =
@@ -39,7 +37,6 @@ export interface SignerField {
   required?: boolean
 }
 
-/** Standard JSON Schema subset plus the layout hints the server adds (`x-*`). */
 export interface JsonSchema {
   type?: 'object' | 'array' | 'string' | 'number' | 'integer' | 'boolean'
   title?: string
@@ -50,27 +47,45 @@ export interface JsonSchema {
   enum?: (string | number)[]
   format?: string
   minimum?: number
+  maximum?: number
+  default?: unknown
+  'x-auto'?: boolean
+  minLength?: number
+  maxLength?: number
+  pattern?: string
   'x-section'?: string
-  /** 1 = half width, 2 = full width. */
   'x-column'?: number
   'x-order'?: number
 }
 
 export interface TemplateDetail extends TemplateSummary {
   schema: JsonSchema
-  /** Legacy type-hint map; prefer `schema`. */
   variables: TemplateVariables
   signerFields: SignerField[]
 }
 
 export interface PreviewRequest {
   templateId: string
-  /** Include `organizationId` to use a server-side branding preset. */
   variables: Record<string, unknown>
+}
+
+export interface NumberingResponse {
+  templateId: string
+  prefix: string
+  sequence: number
+  number: string
+}
+
+export interface PreviewWarning {
+  field: string
+  message: string
+  code?: string
 }
 
 export interface PreviewResponse {
   pdfBase64: string
+  pageCount: number
+  warnings?: PreviewWarning[]
 }
 
 export interface CreateDocumentRequest {
@@ -90,9 +105,6 @@ export interface CreateDocumentResponse {
   sizeBytes: number
 }
 
-// --- Documents -------------------------------------------------------------
-
-/** The API documents these; the server may return others (e.g. Sent, Completed). */
 export type DocumentStatus =
   | 'Plan'
   | 'Draft'
@@ -172,8 +184,6 @@ export interface VoidDocumentResponse {
   documentStatus: 'Voided'
   fileName: string
 }
-
-// --- Signer sessions & signing pipeline ------------------------------------
 
 export interface CreateSessionRequest {
   signerEmail: string

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 defineProps<{
   steps: string[]
-  /** Zero-based index of the current step. */
   current: number
 }>()
 </script>

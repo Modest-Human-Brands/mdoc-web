@@ -2,26 +2,41 @@
   {
     "id": "retainer-contract",
     "label": "Retainer Contract",
-    "description": "A recurring monthly engagement agreement for marketing or development work, billed as a flat fee and/or a target-based fee."
+    "shortLabel": "Retainer contract",
+    "category": "Contracts",
+    "description": "A recurring monthly engagement agreement for marketing or development work, billed as a flat fee and/or a target-based fee.",
+    "sampleUrl": "/api/document/template/retainer-contract/sample.pdf"
   },
   {
     "id": "internship-completion-certificate",
     "label": "Internship Completion Certificate",
-    "description": "The formal proof of completion, including your start and end dates, role, and an authorized signature."
+    "shortLabel": "Internship certificate",
+    "category": "Certificates",
+    "description": "The formal proof of completion, including your start and end dates, role, and an authorized signature.",
+    "sampleUrl": "/api/document/template/internship-completion-certificate/sample.pdf"
   },
   {
     "id": "invoice",
     "label": "Billing Invoice",
-    "description": "The official document outlining the charges, payment terms, and amount due."
+    "shortLabel": "Invoice",
+    "category": "Billing",
+    "description": "The official document outlining the charges, payment terms, and amount due.",
+    "sampleUrl": "/api/document/template/invoice/sample.pdf"
   },
   {
     "id": "quotation",
     "label": "Quotation",
-    "description": "The estimated pricing, scope of work, and terms provided to the client before finalizing the agreement."
+    "shortLabel": "Quotation",
+    "category": "Billing",
+    "description": "The estimated pricing, scope of work, and terms provided to the client before finalizing the agreement.",
+    "sampleUrl": "/api/document/template/quotation/sample.pdf"
   },
   {
     "id": "shoot-contract",
     "label": "Shoot Contract",
-    "description": "The formal agreement or legal document outlining scope, terms, and obligations between parties."
+    "shortLabel": "Shoot contract",
+    "category": "Contracts",
+    "description": "The formal agreement or legal document outlining scope, terms, and obligations between parties.",
+    "sampleUrl": "/api/document/template/shoot-contract/sample.pdf"
   }
 ]

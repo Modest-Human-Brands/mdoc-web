@@ -27,6 +27,11 @@ COPY ./nginx.conf /etc/nginx/nginx.conf
 # Copy built static assets from the builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
+# Writes /config.js from the MDOC_* environment variables each time the container starts
+# (the nginx entrypoint runs every executable *.sh in /docker-entrypoint.d).
+COPY ./docker/runtime-config.sh /docker-entrypoint.d/40-runtime-config.sh
+RUN chmod +x /docker-entrypoint.d/40-runtime-config.sh
+
 ENV NODE_ENV=production
 ENV VUE_APP_VERSION=$VERSION
 ENV VUE_APP_BUILD_TIME=$BUILD_TIME
