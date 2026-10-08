@@ -3,12 +3,12 @@ FROM oven/bun:1-alpine AS builder
 WORKDIR /app
 
 ARG SITE_URL
-ARG VITE_API_BASE_URL
+ARG API_URL
 
 COPY package.json bun.lock ./
 
-ENV VITE_SITE_URL=$SITE_URL
-ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ENV VITE_PUBLIC_SITE_URL=$SITE_URL
+ENV VITE_MDOC_API_URL=$API_URL
 
 RUN bun install --frozen-lockfile
 
@@ -27,7 +27,7 @@ COPY ./nginx.conf /etc/nginx/nginx.conf
 # Copy built static assets from the builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Writes /config.js from the MDOC_* environment variables each time the container starts
+# Writes /config.js from the VITE_* environment variables each time the container starts
 # (the nginx entrypoint runs every executable *.sh in /docker-entrypoint.d).
 COPY ./docker/runtime-config.sh /docker-entrypoint.d/40-runtime-config.sh
 RUN chmod +x /docker-entrypoint.d/40-runtime-config.sh

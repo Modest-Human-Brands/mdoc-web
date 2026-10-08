@@ -20,7 +20,7 @@
     "build": "vp build",
     "preview": "vp preview",
     "docker:build": "docker build --build-arg VERSION=dev --build-arg BUILD_TIME=now -t mdoc-web:dev .",
-    "docker:start": "docker run --detach --name mdoc-web-dev --env-file .env.prod -p 2000:8080 mdoc-web:dev"
+    "docker:start": "docker run --detach --name mdoc-web-dev --env-file .env -p 2000:8080 mdoc-web:dev"
   },
   "dependencies": {
     "@dotenvx/dotenvx": "^2.33.0",

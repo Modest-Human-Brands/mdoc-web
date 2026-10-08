@@ -3,10 +3,10 @@
 # /usr/share/nginx/html/config.js from the container's environment, so the same image works in every
 # environment and values such as the Notion user id are never baked into the image or the repo.
 #
-#   docker run --env-file .env.prod -p 2000:8080 mdoc-web
+#   docker run --env-file .env -p 2000:8080 mdoc-web
 #
-# Variables (all optional): MDOC_USER_ID, MDOC_CONTACT_ID, MDOC_PROJECT_ID, MDOC_ORGANIZATION_ID,
-# MDOC_API_BASE_URL.
+# Variables (all optional): VITE_MDOC_USER_ID, VITE_MDOC_CONTACT_ID, VITE_MDOC_PROJECT_ID, VITE_DEFAULT_ORGANIZATION_ID,
+# VITE_MDOC_API_URL.
 set -eu
 
 TARGET="${MDOC_CONFIG_PATH:-/usr/share/nginx/html/config.js}"
@@ -20,11 +20,12 @@ js_string() {
 cat > "$TARGET" <<EOF
 // Generated at container start by docker/runtime-config.sh. Do not edit.
 window.__MDOC_CONFIG__ = {
-  apiBaseUrl: "$(js_string "${MDOC_API_BASE_URL:-}")",
-  organizationId: "$(js_string "${MDOC_ORGANIZATION_ID:-}")",
-  userId: "$(js_string "${MDOC_USER_ID:-}")",
-  contactId: "$(js_string "${MDOC_CONTACT_ID:-}")",
-  projectId: "$(js_string "${MDOC_PROJECT_ID:-}")",
+  apiBaseUrl: "$(js_string "${VITE_MDOC_API_URL:-}")",
+  siteUrl: "$(js_string "${VITE_PUBLIC_SITE_URL:-}")",
+  organizationId: "$(js_string "${VITE_DEFAULT_ORGANIZATION_ID:-}")",
+  userId: "$(js_string "${VITE_MDOC_USER_ID:-}")",
+  contactId: "$(js_string "${VITE_MDOC_CONTACT_ID:-}")",
+  projectId: "$(js_string "${VITE_MDOC_PROJECT_ID:-}")",
 }
 EOF
 

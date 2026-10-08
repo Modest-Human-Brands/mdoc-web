@@ -24,10 +24,14 @@ Run the MDoc API (Nitro/H3) on port 3002 first, or set `VITE_API_PROXY_TARGET`.
 
 ## Configuration
 
-| Variable                | Purpose                                                                                                                                                                         |
-| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `VITE_API_BASE_URL`     | API origin. Empty uses same-origin `/api` (dev proxy). Set it at build time for production, also as the `API_BASE_URL` repo variable and the Docker build arg of the same name. |
-| `VITE_API_PROXY_TARGET` | Dev only: target of the `/api` proxy.                                                                                                                                           |
+| Variable                                                            | Purpose                                                                                                                         |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_PUBLIC_SITE_URL`                                              | Public URL of this app. Docker build arg `SITE_URL`.                                                                            |
+| `VITE_MDOC_API_URL`                                                 | MDoc API origin. In development it is the target of the `/api` proxy; in production it is the API origin (build arg `API_URL`). |
+| `VITE_DEFAULT_ORGANIZATION_ID`                                      | Organisation preset id (optional).                                                                                              |
+| `VITE_MDOC_USER_ID`, `VITE_MDOC_CONTACT_ID`, `VITE_MDOC_PROJECT_ID` | Notion ids. Only read in development; in Docker pass them when the container starts.                                            |
+
+Copy `.env.example` to `.env` (git-ignored) and fill it in.
 
 ## API contract
 
@@ -53,16 +57,16 @@ Tools are same-origin only, never expose secrets, and reuse the store and API cl
 
 ## Deployment
 
-Docker image (nginx, SPA fallback) built by `.github/workflows/deploy.yml` on GitHub release. Requires the repo variables `USERNAME`, `SITE_URL`, `API_BASE_URL` and the secret `GH_PAT`. `gitleaks` is used by the pre-commit hook.
+Docker image (nginx, SPA fallback) built by `.github/workflows/deploy.yml` on GitHub release. Requires the repo variables `USERNAME`, `SITE_URL`, `API_URL` and the secret `GH_PAT`. `gitleaks` is used by the pre-commit hook.
 
 ## Docker
 
 ```bash
 bun run docker:build   # builds mdoc-web:dev
-bun run docker:start   # runs it with --env-file .env.prod on http://localhost:2000
+bun run docker:start   # runs it with --env-file .env on http://localhost:2000
 ```
 
-Per-environment settings are **runtime** variables, not build arguments: when the container starts, `docker/runtime-config.sh` writes `/config.js` from `MDOC_USER_ID`, `MDOC_CONTACT_ID`, `MDOC_PROJECT_ID`, `MDOC_ORGANIZATION_ID` and `MDOC_API_BASE_URL`. Put them in `.env.prod` (git-ignored; see `.env.example`) or pass `-e`. The image itself never contains them.
+Per-environment settings are **runtime** variables, not build arguments: when the container starts, `docker/runtime-config.sh` writes `/config.js` from `VITE_MDOC_USER_ID`, `VITE_MDOC_CONTACT_ID`, `VITE_MDOC_PROJECT_ID`, `VITE_DEFAULT_ORGANIZATION_ID` and `VITE_MDOC_API_URL`. Put them in `.env` (git-ignored; see `.env.example`) or pass `-e`. The image itself never contains them.
 
 ## License
 

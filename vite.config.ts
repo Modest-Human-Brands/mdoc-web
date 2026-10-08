@@ -1,11 +1,13 @@
 import { fileURLToPath, URL } from 'node:url'
 
-import { defineConfig, lazyPlugins } from 'vite-plus'
+import { defineConfig, lazyPlugins, loadEnv } from 'vite-plus'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import tailwindcss from '@tailwindcss/vite'
 import Unfonts from 'unplugin-fonts/vite'
 import Icons from 'unplugin-icons/vite'
+
+const env = loadEnv('development', process.cwd(), 'VITE_')
 
 export default defineConfig({
   staged: {
@@ -113,7 +115,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: process.env.VITE_API_PROXY_TARGET ?? 'http://localhost:3002',
+        target: env.VITE_MDOC_API_URL || 'http://localhost:3001',
         changeOrigin: true,
       },
     },
