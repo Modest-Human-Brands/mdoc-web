@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.0.4
+
+[compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.3...v0.0.4)
+
+### 🚀 Enhancements
+
+- **wizard:** Keep steps alive and hold previews across step changes ([4c342ef](https://github.com/Modest-Human-Brands/mdoc-web/commit/4c342ef))
+
+### ❤️ Contributors
+
+- Shirsendu Bairagi ([@shba007](https://github.com/shba007))
+
 ## v0.0.3
 
 [compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.2...v0.0.3)
