@@ -1,3 +1,5 @@
+import { useTimeoutFn } from '@vueuse/core'
+
 export function safeFileName(name: string, fallback = 'document'): string {
   const cleaned = name
     .split('')
@@ -22,7 +24,7 @@ export function saveBlob(blob: Blob, fileName: string): void {
   document.body.append(link)
   link.click()
   link.remove()
-  setTimeout(() => URL.revokeObjectURL(url), 10_000)
+  useTimeoutFn(() => URL.revokeObjectURL(url), 10_000)
 }
 
 export async function blobFromUrl(url: string): Promise<Blob> {

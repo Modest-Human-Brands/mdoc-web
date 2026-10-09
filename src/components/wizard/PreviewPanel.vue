@@ -1,12 +1,21 @@
 <script setup lang="ts">
-import { useElementSize } from '@vueuse/core'
-import { computed, defineAsyncComponent, onBeforeUnmount, ref, watch } from 'vue'
+import { useElementSize, useTimeoutFn } from '@vueuse/core'
+import {
+  computed,
+  defineAsyncComponent,
+  onBeforeUnmount,
+  onDeactivated,
+  ref,
+  useTemplateRef,
+  watch,
+} from 'vue'
 
 import type { TemplatePage } from '@/api'
 import UiDocToolbar from '@/components/ui/UiDocToolbar.vue'
 import UiPageRail from '@/components/ui/UiPageRail.vue'
 import { blobFromUrl, pdfFileName, saveBlob } from '@/domain/download'
 import { mostVisiblePage } from '@/domain/pages'
+import { lastShown, showStage } from '@/composables/previewStage'
 
 import ImagePages from './ImagePages.vue'
 
@@ -36,7 +45,7 @@ const renderError = ref<string | null>(null)
 const downloading = ref(false)
 const downloadError = ref<string | null>(null)
 
-const stage = ref<HTMLElement | null>(null)
+const stage = useTemplateRef<HTMLElement>('stage')
 const { width: stageWidth, height: stageHeight } = useElementSize(stage)
 
 watch(
@@ -66,7 +75,7 @@ const zoom = computed({
 
 const pageWidth = computed(() => (PAGE_WIDTH * zoom.value) / 100)
 const hasImages = computed(() => (props.pages?.length ?? 0) > 0)
-const active = computed(() => hasImages.value || props.url !== null)
+const active = computed(() => hasImages.value || props.url !== null || layers.value.length > 0)
 
 interface Layer {
   id: number
@@ -75,12 +84,8 @@ interface Layer {
   ready: boolean
 }
 
-const SETTLE_MS = 600
-
 const layers = ref<Layer[]>([])
 let nextLayerId = 0
-let pruneTimer: ReturnType<typeof setTimeout> | undefined
-
 const source = computed(() => {
   if (hasImages.value && props.pages) return `images:${props.pages.map((p) => p.url).join('|')}`
   return props.url ? `pdf:${props.url}` : null
@@ -89,12 +94,16 @@ const source = computed(() => {
 watch(
   source,
   (key) => {
-    clearTimeout(pruneTimer)
+    const held = lastShown.value
     if (key === null) {
-      layers.value = []
+      layers.value = held
+        ? [{ id: nextLayerId++, url: held.url, pages: held.pages, ready: true }]
+        : []
       return
     }
-    const shown = [...layers.value].reverse().find((layer) => layer.ready)
+    const shown =
+      [...layers.value].reverse().find((layer) => layer.ready) ??
+      (held ? { id: nextLayerId++, url: held.url, pages: held.pages, ready: true } : undefined)
     const incoming: Layer = {
       id: nextLayerId++,
       url: hasImages.value ? null : props.url,
@@ -121,10 +130,30 @@ function markReady(id: number) {
   if (!layer || layer.ready) return
   layer.ready = true
   if (id !== newestId.value) return
-  clearTimeout(pruneTimer)
-  pruneTimer = setTimeout(() => {
-    layers.value = layers.value.filter((item) => item.id >= id)
-  }, SETTLE_MS)
+  showStage({ url: layer.url, pages: layer.pages })
+  layers.value = layers.value.filter((item) => item.id >= id)
+}
+
+function holdStage() {
+  const newest = layers.value[layers.value.length - 1]
+  if (!newest?.ready || !newest.url || newest.pages) return
+  const snapshot = captureSnapshot(newest.id)
+  if (snapshot) showStage({ url: newest.url, pages: snapshot })
+}
+
+onDeactivated(holdStage)
+onBeforeUnmount(holdStage)
+
+function captureSnapshot(id: number): TemplatePage[] | null {
+  const canvases = [
+    ...(stage.value?.querySelectorAll<HTMLCanvasElement>(`[data-layer="${id}"] canvas`) ?? []),
+  ]
+  if (canvases.length === 0) return null
+  return canvases.map((canvas) => ({
+    url: canvas.toDataURL('image/jpeg', 0.92),
+    width: canvas.width,
+    height: canvas.height,
+  }))
 }
 
 function onLayerPages(id: number, count: number) {
@@ -145,10 +174,8 @@ function onPages(count: number) {
   if (page.value > count) page.value = count
 }
 
-onBeforeUnmount(() => clearTimeout(pruneTimer))
-
 let jumping = false
-let jumpTimer: ReturnType<typeof setTimeout> | undefined
+const jump = useTimeoutFn(() => endJump(), 900, { immediate: false })
 let frame = 0
 
 function pageBoxes() {
@@ -173,7 +200,7 @@ function onScroll() {
 
 function endJump() {
   jumping = false
-  clearTimeout(jumpTimer)
+  jump.stop()
 }
 
 function goToPage(target: number) {
@@ -182,8 +209,7 @@ function goToPage(target: number) {
   page.value = target
   if (!container || !el) return
   jumping = true
-  clearTimeout(jumpTimer)
-  jumpTimer = setTimeout(endJump, 900)
+  jump.start()
   const offset = el.getBoundingClientRect().top - container.getBoundingClientRect().top
   container.scrollTo({ top: container.scrollTop + offset - STAGE_PADDING / 2, behavior: 'smooth' })
 }
@@ -247,20 +273,33 @@ function onPointerUp(event: PointerEvent) {
   >
     <header class="flex h-4.25 items-center justify-between">
       <h2 class="text-sm font-bold text-light-400">{{ label }}</h2>
-      <span
-        v-if="(loading && url) || (layers.length > 0 && !newestReady && !renderError)"
-        class="flex items-center gap-2 text-xs text-light-400"
-        role="status"
+      <Transition
+        enter-active-class="transition duration-200 ease-out"
+        enter-from-class="opacity-0"
+        leave-active-class="transition duration-200 ease-in"
+        leave-to-class="opacity-0"
       >
         <span
-          class="size-3 animate-spin rounded-full border-2 border-light-500 border-t-transparent"
-          aria-hidden="true"
-        />
-        Updating…
-      </span>
+          v-if="(loading && url) || (layers.length > 0 && !newestReady && !renderError)"
+          class="flex items-center gap-2 text-xs text-light-400"
+          role="status"
+        >
+          <span
+            class="size-3 animate-spin rounded-full border-2 border-light-500 border-t-transparent"
+            aria-hidden="true"
+          />
+          Updating…
+        </span>
+      </Transition>
     </header>
 
     <div class="relative flex min-h-0 flex-1 items-center justify-center">
+      <div
+        v-if="loading && (url || hasImages)"
+        class="absolute inset-x-0 top-0 z-10 h-0.5 animate-pulse bg-accent-400"
+        role="progressbar"
+        aria-label="Rendering preview"
+      />
       <p
         v-if="!active && !error && !loading"
         class="max-w-64 text-center text-sm text-light-400"
@@ -285,10 +324,16 @@ function onPointerUp(event: PointerEvent) {
         @scroll.passive="onScroll"
         @scrollend="endJump"
       >
-        <div class="grid min-h-full min-w-full place-items-center p-3">
+        <TransitionGroup
+          tag="div"
+          class="grid min-h-full min-w-full place-items-center p-3"
+          leave-active-class="transition duration-500 ease-out"
+          leave-to-class="opacity-0 blur-lg"
+        >
           <div
             v-for="layer in layers"
             :key="layer.id"
+            :data-layer="layer.id"
             class="col-start-1 row-start-1 transition-[opacity,filter] duration-500 ease-out"
             :class="[layerClass(layer), layer.id === newestId ? '' : 'pointer-events-none']"
             :data-newest="layer.id === newestId ? '' : undefined"
@@ -311,20 +356,27 @@ function onPointerUp(event: PointerEvent) {
               @failed="renderError = $event"
             />
           </div>
-        </div>
+        </TransitionGroup>
       </div>
 
-      <p
-        v-if="error || renderError || downloadError"
-        class="absolute top-0 right-0 left-0 rounded-md bg-alert-600 px-3 py-2 text-xs font-semi-bold text-white"
-        role="alert"
+      <Transition
+        enter-active-class="transition duration-200 ease-out"
+        enter-from-class="opacity-0"
+        leave-active-class="transition duration-200 ease-in"
+        leave-to-class="opacity-0"
       >
-        {{
-          downloadError
-            ? `Download failed: ${downloadError}`
-            : `Preview failed: ${error ?? renderError}`
-        }}
-      </p>
+        <p
+          v-if="error || renderError || downloadError"
+          class="absolute top-0 right-0 left-0 rounded-md bg-alert-600 px-3 py-2 text-xs font-semi-bold text-white"
+          role="alert"
+        >
+          {{
+            downloadError
+              ? `Download failed: ${downloadError}`
+              : `Preview failed: ${error ?? renderError}`
+          }}
+        </p>
+      </Transition>
 
       <UiPageRail
         v-if="active && pageCount > 1"

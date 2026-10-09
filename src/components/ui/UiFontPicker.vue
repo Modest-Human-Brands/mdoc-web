@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import IconChevronDown from '~icons/lucide/chevron-down'
-import { computed, onBeforeUnmount, ref, useId, watch } from 'vue'
+import { useDebounceFn } from '@vueuse/core'
+import { computed, ref, useId, watch } from 'vue'
 
 import type { FontSummary } from '@/api'
 
@@ -24,17 +25,17 @@ const id = useId()
 const open = ref(false)
 const query = ref('')
 const active = ref(0)
-let timer: ReturnType<typeof setTimeout> | undefined
 
 const shown = computed(() => (open.value ? query.value : model.value))
 const empty = computed(() => !props.loading && props.options.length === 0)
+
+const searchDebounced = useDebounceFn((value: string) => emit('search', value), props.debounce)
 
 function onInput(event: Event) {
   query.value = (event.target as HTMLInputElement).value
   open.value = true
   active.value = 0
-  clearTimeout(timer)
-  timer = setTimeout(() => emit('search', query.value), props.debounce)
+  void searchDebounced(query.value)
 }
 
 function openList() {
@@ -51,7 +52,6 @@ function openList() {
 function close() {
   open.value = false
   query.value = ''
-  clearTimeout(timer)
 }
 
 function choose(font: FontSummary) {
@@ -80,8 +80,6 @@ watch(
   () => props.options,
   () => (active.value = Math.min(active.value, Math.max(0, props.options.length - 1))),
 )
-
-onBeforeUnmount(() => clearTimeout(timer))
 </script>
 
 <template>

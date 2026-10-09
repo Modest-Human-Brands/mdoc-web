@@ -39,7 +39,7 @@ The API is described by the Postman collection in `postman/collections/MDoc REST
 
 ## AI / WebMCP
 
-The wizard can be operated by AI agents. `src/mcp/` registers tools with **WebMCP** (`navigator.modelContext.registerTool`, Chrome 149 origin trial) and always publishes the same tools on `window.__mdocTools` (`list()` and `call(name, args)`) for agents that drive the page by script.
+The wizard can be operated by AI agents. `src/mcp/` registers tools with **WebMCP** through VueUse's `useWebMCP` (`document.modelContext.registerTool`, Chrome origin trial; a no-op where the API is missing) and always publishes the same tools on `window.__mdocTools` (`list()` and `call(name, args)`) for agents that drive the page by script.
 
 | Tool                                                      | What it does                                                                                                         |
 | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |

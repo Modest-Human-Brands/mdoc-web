@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import IconImagePlus from '~icons/lucide/image-plus'
-import { ref } from 'vue'
+import { ref, useTemplateRef } from 'vue'
 
 import { rasterizeLogo } from '@/domain/image'
 
@@ -12,7 +12,7 @@ export interface LogoValue {
 const model = defineModel<LogoValue | null>({ required: true })
 
 const MAX_BYTES = 1024 * 1024
-const input = ref<HTMLInputElement | null>(null)
+const input = useTemplateRef<HTMLInputElement>('input')
 const error = ref<string | null>(null)
 
 async function onPick(event: Event) {

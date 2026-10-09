@@ -1,4 +1,5 @@
-import { onMounted, ref, toValue, watch, type MaybeRefOrGetter } from 'vue'
+import { useAsyncState } from '@vueuse/core'
+import { computed, ref, toValue, watch, type MaybeRefOrGetter } from 'vue'
 import { useRouter } from 'vue-router'
 
 import {
@@ -16,26 +17,34 @@ export function errorMessage(error: unknown): string {
     : 'Something went wrong.'
 }
 
+let cachedTemplates: TemplateSummary[] | null = null
+
 export function useTemplates() {
-  const templates = ref<TemplateSummary[]>([])
-  const loading = ref(false)
-  const error = ref<string | null>(null)
+  const {
+    state: templates,
+    isLoading,
+    error,
+    execute,
+  } = useAsyncState(() => templatesApi.list(), cachedTemplates ?? [], {
+    immediate: true,
+    resetOnExecute: false,
+    throwError: false,
+    onSuccess: (list) => {
+      cachedTemplates = list
+    },
+  })
 
-  async function load() {
-    loading.value = true
-    error.value = null
-    try {
-      templates.value = await templatesApi.list()
-    } catch (e) {
-      error.value = errorMessage(e)
-    } finally {
-      loading.value = false
-    }
+  const loading = computed(() => isLoading.value && templates.value.length === 0)
+  const visibleError = computed(() =>
+    error.value && templates.value.length === 0 ? errorMessage(error.value) : null,
+  )
+
+  return {
+    templates,
+    loading,
+    error: visibleError,
+    reload: () => execute(0),
   }
-
-  onMounted(load)
-
-  return { templates, loading, error, reload: load }
 }
 
 export function useTemplateDetail(id: MaybeRefOrGetter<string | null>) {

@@ -30,7 +30,7 @@ describe('usePreview', () => {
     vi.unstubAllGlobals()
   })
 
-  it('stays empty without a template and debounces rapid edits into one request', async () => {
+  it('stays empty without a template and sends one request after edits settle', async () => {
     const fetchMock = vi.fn<typeof fetch>(() => Promise.resolve(previewResponse(TWO_PAGES)))
     vi.stubGlobal('fetch', fetchMock)
     const templateId = ref<string | null>(null)
@@ -47,8 +47,12 @@ describe('usePreview', () => {
     variables.value = { a: '12' }
     await nextTick()
     variables.value = { a: '123' }
-    await vi.advanceTimersByTimeAsync(500)
+    await nextTick()
 
+    await vi.advanceTimersByTimeAsync(500)
+    expect(fetchMock).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(300)
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const init = fetchMock.mock.calls[0]?.[1]
     expect(JSON.parse(init?.body as string)).toEqual({
@@ -57,6 +61,26 @@ describe('usePreview', () => {
       variables: { a: '123' },
     })
     expect(preview.url.value).toBe('blob:mock')
+    scope.stop()
+  })
+
+  it('restarts the wait on every keystroke, so a long typing burst sends only one request', async () => {
+    const fetchMock = vi.fn<typeof fetch>(() => Promise.resolve(previewResponse(TWO_PAGES)))
+    vi.stubGlobal('fetch', fetchMock)
+    const variables = ref<Record<string, unknown>>({ name: '' })
+    const scope = effectScope()
+    scope.run(() => usePreview(ref('invoice'), variables))
+    await vi.advanceTimersByTimeAsync(600)
+    fetchMock.mockClear()
+
+    for (let i = 1; i <= 20; i++) {
+      variables.value = { name: 'x'.repeat(i) }
+      await vi.advanceTimersByTimeAsync(300)
+    }
+    expect(fetchMock).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(800)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
     scope.stop()
   })
 
@@ -75,7 +99,7 @@ describe('usePreview', () => {
       usePreview(ref('invoice'), ref({ recipient: { email: 'acc' } })),
     )!
 
-    await vi.advanceTimersByTimeAsync(500)
+    await vi.advanceTimersByTimeAsync(900)
 
     expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/document/template/preview?draft=true')
     expect(preview.pageCount.value).toBe(2)
@@ -104,14 +128,36 @@ describe('usePreview', () => {
     const scope = effectScope()
     const preview = scope.run(() => usePreview(templateId, variables))!
 
-    await vi.advanceTimersByTimeAsync(500)
+    await vi.advanceTimersByTimeAsync(900)
     expect(preview.url.value).toBe('blob:mock')
 
     variables.value = { a: '2' }
-    await vi.advanceTimersByTimeAsync(500)
+    await vi.advanceTimersByTimeAsync(900)
 
     expect(preview.error.value).toBe('templateId is required.')
     expect(preview.url.value).toBe('blob:mock')
+    scope.stop()
+  })
+
+  it('renders at once when a discrete change flushes the pending request', async () => {
+    const fetchMock = vi.fn<typeof fetch>(() => Promise.resolve(previewResponse(ONE_PAGE)))
+    vi.stubGlobal('fetch', fetchMock)
+    const variables = ref<Record<string, unknown>>({ a: '1' })
+    const flush = ref(0)
+    const scope = effectScope()
+    scope.run(() => usePreview(ref('invoice'), variables, 'filled', flush))
+    await vi.advanceTimersByTimeAsync(900)
+    fetchMock.mockClear()
+
+    variables.value = { a: '2' }
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(100)
+    expect(fetchMock).not.toHaveBeenCalled()
+
+    flush.value++
+    await nextTick()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
     scope.stop()
   })
 })

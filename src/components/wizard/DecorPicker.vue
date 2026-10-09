@@ -1,12 +1,26 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, useTemplateRef } from 'vue'
 
 import { decorApi, resolveApiUrl, type DecorSummary } from '@/api'
 import { errorMessage } from '@/composables/useTemplates'
-import { decorKind, loadRecentDecor, rememberDecor, type RecentDecor } from '@/domain/decor'
+import { recentDecor, rememberDecor } from '@/composables/useRecentDecor'
+import { decorKind } from '@/domain/decor'
 import { isHttpsUrl } from '@/domain/url'
 
 const model = defineModel<string>({ default: '' })
+
+const builtinCache = new Map<string, Promise<DecorSummary[]>>()
+
+function loadBuiltins(slot: string | undefined): Promise<DecorSummary[]> {
+  const key = slot ?? ''
+  let pending = builtinCache.get(key)
+  if (!pending) {
+    pending = decorApi.list(slot)
+    builtinCache.set(key, pending)
+    pending.catch(() => builtinCache.delete(key))
+  }
+  return pending
+}
 
 const props = defineProps<{
   label: string
@@ -19,11 +33,10 @@ const props = defineProps<{
 const MAX_BYTES = 2 * 1024 * 1024
 
 const builtins = ref<DecorSummary[]>([])
-const recent = ref<RecentDecor[]>(loadRecentDecor())
 const uploading = ref(false)
 const problem = ref<string | null>(null)
 const urlDraft = ref(decorKind(model.value) === 'url' ? model.value : '')
-const fileInput = ref<HTMLInputElement | null>(null)
+const fileInput = useTemplateRef<HTMLInputElement>('fileInput')
 
 const showBuiltins = computed(() => props.widget === 'decor')
 const current = computed(() => (decorKind(model.value) === 'none' ? 'none' : model.value.trim()))
@@ -31,7 +44,7 @@ const current = computed(() => (decorKind(model.value) === 'none' ? 'none' : mod
 onMounted(async () => {
   if (!showBuiltins.value) return
   try {
-    builtins.value = await decorApi.list(props.decorSlot)
+    builtins.value = await loadBuiltins(props.decorSlot)
   } catch (error) {
     problem.value = errorMessage(error)
   }
@@ -55,7 +68,7 @@ async function onFile(event: Event) {
   problem.value = null
   try {
     const uploaded = await decorApi.upload(file)
-    recent.value = rememberDecor({ id: uploaded.id, url: uploaded.url })
+    rememberDecor({ id: uploaded.id, url: uploaded.url })
     model.value = uploaded.id
   } catch (error) {
     problem.value = errorMessage(error)
@@ -125,7 +138,7 @@ function tileClass(id: string) {
         />
       </button>
       <button
-        v-for="upload in recent"
+        v-for="upload in recentDecor"
         :key="upload.id"
         type="button"
         role="radio"

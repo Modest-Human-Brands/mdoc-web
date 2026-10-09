@@ -444,7 +444,7 @@ describe('registerWebMcp', () => {
 
   afterEach(() => {
     delete window.__mdocTools
-    Reflect.deleteProperty(navigator, 'modelContext')
+    Reflect.deleteProperty(document, 'modelContext')
   })
 
   function deps() {
@@ -467,34 +467,27 @@ describe('registerWebMcp', () => {
     expect(unknown?.isError).toBe(true)
   })
 
-  it('registers every tool with navigator.modelContext when available', () => {
+  it('registers every tool through vueuse useWebMCP when document.modelContext exists', () => {
     const registerTool = vi.fn<(tool: ModelContextTool) => void>()
-    Object.defineProperty(navigator, 'modelContext', {
-      value: { registerTool },
-      configurable: true,
-    })
+    Object.defineProperty(document, 'modelContext', { value: { registerTool }, configurable: true })
 
     registerWebMcp(deps())
 
     expect(registerTool).toHaveBeenCalledTimes(window.__mdocTools?.list().length ?? -1)
     expect(registerTool.mock.calls[0]?.[0]).toMatchObject({
       name: expect.any(String) as string,
+      description: expect.any(String) as string,
       execute: expect.any(Function) as () => void,
     })
   })
 
-  it('keeps going when a registration throws', () => {
+  it('does not throw when a registration fails', () => {
     const registerTool = vi.fn<(tool: ModelContextTool) => void>(() => {
       throw new Error('duplicate')
     })
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    Object.defineProperty(navigator, 'modelContext', {
-      value: { registerTool },
-      configurable: true,
-    })
+    Object.defineProperty(document, 'modelContext', { value: { registerTool }, configurable: true })
 
     expect(() => registerWebMcp(deps())).not.toThrow()
     expect(window.__mdocTools).toBeDefined()
-    warn.mockRestore()
   })
 })

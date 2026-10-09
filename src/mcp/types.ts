@@ -10,20 +10,12 @@ export interface ToolResult {
   isError?: boolean
 }
 
-export interface AgentClient {
-  requestUserInteraction?: <T>(callback: () => Promise<T> | T) => Promise<T>
-}
-
 export interface ModelContextTool {
   name: string
   description: string
   inputSchema: JsonSchemaObject
   annotations?: { readOnlyHint?: boolean }
-  execute: (input: Record<string, unknown>, client?: AgentClient) => Promise<ToolResult>
-}
-
-export interface ModelContext {
-  registerTool: (tool: ModelContextTool) => unknown
+  execute: (input: Record<string, unknown>) => Promise<ToolResult>
 }
 
 export interface MdocToolRegistry {
@@ -32,9 +24,6 @@ export interface MdocToolRegistry {
 }
 
 declare global {
-  interface Navigator {
-    modelContext?: ModelContext
-  }
   interface Window {
     __mdocTools?: MdocToolRegistry
   }

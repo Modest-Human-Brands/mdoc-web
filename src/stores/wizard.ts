@@ -1,5 +1,6 @@
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
+import { useDebounceFn, useStorage } from '@vueuse/core'
 import { useNotForm } from 'notform'
 
 import {
@@ -60,23 +61,11 @@ interface Draft {
   values: Values
 }
 
-function read<T>(key: string): T | null {
-  try {
-    const raw = localStorage.getItem(key)
-    return raw ? (JSON.parse(raw) as T) : null
-  } catch {
-    return null
-  }
-}
-
-function write(key: string, value: unknown) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value))
-  } catch {}
-}
-
 export const useWizardStore = defineStore('wizard', () => {
-  const saved = read<Partial<Draft>>(DRAFT_KEY)
+  const draft = useStorage<Partial<Draft>>(DRAFT_KEY, {}, undefined, {
+    listenToStorageChanges: false,
+  })
+  const saved = draft.value
 
   const templateId = ref<string | null>(saved?.templateId ?? null)
   const template = ref<TemplateDetail | null>(null)
@@ -97,11 +86,14 @@ export const useWizardStore = defineStore('wizard', () => {
   })
   const organization = organizationForm.values as OrganizationProfile
   const organizationSaved = ref(true)
+  const savedIds = useStorage<Partial<OwnerIds>>(IDS_KEY, {}, undefined, {
+    listenToStorageChanges: false,
+  })
   const ids = ref<OwnerIds>({
     userId: config.userId,
     contactId: config.contactId,
     projectId: config.projectId,
-    ...read<Partial<OwnerIds>>(IDS_KEY),
+    ...savedIds.value,
   })
   const document = ref<CreateDocumentResponse | null>(null)
   const serverErrors = ref<FieldError[]>([])
@@ -233,10 +225,18 @@ export const useWizardStore = defineStore('wizard', () => {
   }
 
   const templateError = ref<string | null>(null)
+  const submitAttempted = ref(false)
+  const previewFlushes = ref(0)
+
+  /** Discrete changes (selects, toggles, uploads) render at once instead of waiting for typing to settle. */
+  function flushPreview() {
+    previewFlushes.value++
+  }
 
   function selectTemplate(id: string | null) {
     if (templateId.value === id) return
     templateId.value = id
+    submitAttempted.value = false
     template.value = null
     templateError.value = null
     lockedNumberPath.value = null
@@ -286,7 +286,7 @@ export const useWizardStore = defineStore('wizard', () => {
     const data = toPayload(schema.value, values) as Values
     const numbered = numberPath.value ? textAt(data, numberPath.value) : ''
     const name = numbered || `${templateId.value}-${new Date().toISOString().slice(0, 10)}`
-    write(IDS_KEY, ids.value)
+    savedIds.value = { ...ids.value }
 
     try {
       document.value = await templatesApi.createDocument(
@@ -313,27 +313,39 @@ export const useWizardStore = defineStore('wizard', () => {
 
   function reset() {
     templateId.value = null
+    submitAttempted.value = false
     template.value = null
     form.reset({})
     document.value = null
     serverErrors.value = []
   }
 
-  let numberTimer: ReturnType<typeof setTimeout> | undefined
+  const refreshNumber = useDebounceFn(() => {
+    if (numberPath.value) void prefillNumber()
+  }, 600)
   watch(
     () => [organization.id, organization.name] as const,
-    () => {
-      clearTimeout(numberTimer)
-      if (numberPath.value) numberTimer = setTimeout(() => void prefillNumber(), 600)
-    },
+    () => void refreshNumber(),
   )
 
   watch([values, ids], () => (document.value = null), { deep: true })
   watch(organization, () => (organizationSaved.value = false), { deep: true, flush: 'sync' })
+  watch(
+    () =>
+      [
+        organization.entityType,
+        organization.tradeRelationship,
+        organization.font,
+        organization.logo,
+      ] as const,
+    () => flushPreview(),
+  )
 
   watch(
     [templateId, values],
-    () => write(DRAFT_KEY, { templateId: templateId.value, values: values } satisfies Draft),
+    () => {
+      draft.value = { templateId: templateId.value, values } satisfies Draft
+    },
     { deep: true },
   )
 
@@ -367,6 +379,9 @@ export const useWizardStore = defineStore('wizard', () => {
     selectTemplate,
     loadTemplate,
     templateError,
+    submitAttempted,
+    previewFlushes,
+    flushPreview,
     preview,
     setValue,
     setPreviewWarnings,

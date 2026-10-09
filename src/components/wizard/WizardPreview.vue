@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, watch, watchEffect } from 'vue'
 
 import { documentsApi } from '@/api'
 import { usePreview } from '@/composables/usePreview'
@@ -18,22 +18,20 @@ const { url, pageCount, warnings, loading, error } = usePreview(
   previewTemplate,
   () => (props.variant === 'branded' ? wizard.brandPreviewVariables : wizard.previewVariables),
   () => props.variant,
+  () => wizard.previewFlushes,
 )
 
 watch(warnings, (list) => wizard.setPreviewWarnings(props.variant === 'filled' ? list : []), {
   immediate: true,
 })
-watch(
-  [url, loading, error, pageCount],
-  () =>
-    (wizard.preview = {
-      loading: loading.value,
-      error: error.value,
-      ready: url.value !== null,
-      pageCount: pageCount.value,
-    }),
-  { immediate: true },
-)
+watchEffect(() => {
+  wizard.preview = {
+    loading: loading.value,
+    error: error.value,
+    ready: url.value !== null,
+    pageCount: pageCount.value,
+  }
+})
 
 const fetchDownload = computed(() => {
   const document = wizard.document

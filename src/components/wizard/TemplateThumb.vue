@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useIntersectionObserver } from '@vueuse/core'
-import { defineAsyncComponent, ref } from 'vue'
+import { defineAsyncComponent, ref, useTemplateRef } from 'vue'
 import IconFileText from '~icons/lucide/file-text'
 
 import { resolveApiUrl } from '@/api'
@@ -14,7 +14,7 @@ const props = defineProps<{
 
 const PAGE_WIDTH = 120
 
-const root = ref<HTMLElement | null>(null)
+const root = useTemplateRef<HTMLElement>('root')
 const visible = ref(false)
 const ready = ref(false)
 const failed = ref(false)

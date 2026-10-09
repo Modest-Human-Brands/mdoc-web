@@ -1,11 +1,11 @@
-import { createTools, type ToolDeps } from './tools'
-import type { AgentClient, MdocToolRegistry, ModelContextTool, ToolResult } from './types'
+import { useWebMCP } from '@vueuse/core'
+import { effectScope } from 'vue'
 
-export async function askUser(message: string, client?: AgentClient): Promise<boolean> {
-  if (client?.requestUserInteraction) {
-    return await client.requestUserInteraction(async () => window.confirm(message))
-  }
-  return window.confirm(message)
+import { createTools, type ToolDeps } from './tools'
+import type { MdocToolRegistry, ModelContextTool, ToolResult } from './types'
+
+export function askUser(message: string): Promise<boolean> {
+  return Promise.resolve(window.confirm(message))
 }
 
 export function registerWebMcp(
@@ -40,16 +40,18 @@ export function registerWebMcp(
   }
   window.__mdocTools = registry
 
-  const modelContext = navigator.modelContext
-  if (modelContext && typeof modelContext.registerTool === 'function') {
+  const scope = effectScope(true)
+  scope.run(() => {
     for (const tool of tools) {
-      try {
-        modelContext.registerTool(tool)
-      } catch (error) {
-        console.warn(`WebMCP: could not register "${tool.name}"`, error)
-      }
+      useWebMCP({
+        name: tool.name,
+        description: tool.description,
+        inputSchema: tool.inputSchema,
+        annotations: tool.annotations,
+        execute: (args: Record<string, unknown>) => tool.execute(args),
+      })
     }
-  }
+  })
 
   return registry
 }

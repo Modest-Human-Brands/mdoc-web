@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 import { effectScope } from 'vue'
 
-import { FALLBACK_FONTS, useFonts } from '../useFonts'
+import { FALLBACK_FONTS, resetFontCache, useFonts } from '../useFonts'
 
-afterEach(() => vi.unstubAllGlobals())
+afterEach(() => {
+  vi.unstubAllGlobals()
+  resetFontCache()
+})
 
 function setup() {
   const scope = effectScope()
@@ -71,5 +74,22 @@ describe('useFonts', () => {
     )
 
     expect(await setup().isKnown('Georgia')).toBeNull()
+  })
+
+  it('fetches the featured list once per session and reuses it', async () => {
+    const fetchMock = vi.fn<typeof fetch>(() =>
+      Promise.resolve(
+        new Response(JSON.stringify([{ family: 'Inter', name: 'Inter' }]), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await setup().search('')
+    await setup().search('')
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })

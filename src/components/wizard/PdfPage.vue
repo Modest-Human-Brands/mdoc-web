@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { usePDF, VuePDF } from '@tato30/vue-pdf'
-import { toRef, watch } from 'vue'
+import { toRef, watchEffect } from 'vue'
 
 const props = defineProps<{
   url: string
@@ -19,7 +19,9 @@ const { pdf, pages } = usePDF(toRef(props, 'url'), {
     emit('failed', error instanceof Error ? error.message : 'Cannot read PDF'),
 })
 
-watch(pages, (count) => count > 0 && emit('pages', count), { immediate: true })
+watchEffect(() => {
+  if (pages.value > 0) emit('pages', pages.value)
+})
 
 function onLoaded(viewport: { width: number; height: number }) {
   if (viewport.width > 0) emit('aspect', viewport.height / viewport.width)

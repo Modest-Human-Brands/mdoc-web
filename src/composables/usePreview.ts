@@ -1,10 +1,12 @@
-import { onScopeDispose, ref, toValue, watch, type MaybeRefOrGetter } from 'vue'
+import { useTimeoutFn } from '@vueuse/core'
+import { computed, onScopeDispose, ref, toValue, watch, type MaybeRefOrGetter } from 'vue'
 
 import { templatesApi, type PreviewVariant, type PreviewWarning } from '@/api'
 
+import { isHeld } from './previewStage'
 import { errorMessage } from './useTemplates'
 
-const DEBOUNCE_MS = 400
+const DEBOUNCE_MS = 800
 const MAX_CACHE = 20
 
 interface Rendered {
@@ -24,6 +26,7 @@ export function usePreview(
   templateId: MaybeRefOrGetter<string | null>,
   variables: MaybeRefOrGetter<Record<string, unknown>>,
   variant: MaybeRefOrGetter<PreviewVariant> = 'filled',
+  flush: MaybeRefOrGetter<number> = 0,
 ) {
   const url = ref<string | null>(null)
   const pageCount = ref(1)
@@ -33,7 +36,7 @@ export function usePreview(
 
   const cache = new Map<string, Rendered>()
   let controller: AbortController | undefined
-  let timer: ReturnType<typeof setTimeout> | undefined
+  let disposed = false
 
   function show(rendered: Rendered) {
     url.value = rendered.url
@@ -49,7 +52,9 @@ export function usePreview(
       const oldest = cache.keys().next().value
       if (oldest !== undefined) {
         const evicted = cache.get(oldest)
-        if (evicted && evicted.url !== url.value) URL.revokeObjectURL(evicted.url)
+        if (evicted && evicted.url !== url.value && !isHeld(evicted.url)) {
+          URL.revokeObjectURL(evicted.url)
+        }
         cache.delete(oldest)
       }
     }
@@ -86,27 +91,57 @@ export function usePreview(
     }
   }
 
+  const requestKey = computed(() =>
+    JSON.stringify([toValue(templateId), toValue(variant), toValue(variables)]),
+  )
+
+  let started = false
+  const pending = useTimeoutFn(
+    () => run(),
+    () => (started ? DEBOUNCE_MS : 0),
+    { immediate: false },
+  )
+
+  function run() {
+    if (disposed) return
+    const id = toValue(templateId)
+    if (!id) {
+      controller?.abort()
+      url.value = null
+      warnings.value = []
+      loading.value = false
+      error.value = null
+      return
+    }
+    void render(id, toValue(variant), toValue(variables))
+  }
+
   watch(
-    () => [toValue(templateId), toValue(variant), JSON.stringify(toValue(variables))] as const,
-    ([id, kind]) => {
-      clearTimeout(timer)
-      if (!id) {
-        controller?.abort()
-        url.value = null
-        warnings.value = []
-        loading.value = false
-        error.value = null
-        return
-      }
-      timer = setTimeout(() => void render(id, kind, toValue(variables)), DEBOUNCE_MS)
+    requestKey,
+    () => {
+      if (toValue(templateId)) loading.value = true
+      pending.start()
+      started = true
     },
     { immediate: true },
   )
 
+  watch(
+    () => toValue(flush),
+    () => {
+      if (!pending.isPending.value) return
+      pending.stop()
+      run()
+    },
+  )
+
   onScopeDispose(() => {
-    clearTimeout(timer)
+    disposed = true
+    pending.stop()
     controller?.abort()
-    for (const { url: cached } of cache.values()) URL.revokeObjectURL(cached)
+    for (const { url: cached } of cache.values()) {
+      if (!isHeld(cached)) URL.revokeObjectURL(cached)
+    }
     cache.clear()
   })
 

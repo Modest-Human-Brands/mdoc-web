@@ -2,7 +2,6 @@
 import { useRouter } from 'vue-router'
 
 import UiStepper from '@/components/ui/UiStepper.vue'
-import { useActiveTemplate } from '@/composables/useTemplates'
 import { STEPS, useWizardStore } from '@/stores/wizard'
 
 defineProps<{
@@ -13,9 +12,14 @@ defineProps<{
 
 const router = useRouter()
 const wizard = useWizardStore()
-useActiveTemplate()
 
 async function cancel() {
+  if (
+    wizard.templateId !== null &&
+    !window.confirm('Discard this document? Everything entered so far is removed from this device.')
+  ) {
+    return
+  }
   wizard.reset()
   await router.push(STEPS[0].path)
 }

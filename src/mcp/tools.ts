@@ -24,12 +24,12 @@ import { emptyValue, getPath, stripExcluded, textAt, toPayload, type Values } fr
 import { STEPS, useWizardStore } from '@/stores/wizard'
 
 import { coerce, editablePaths, resolveList, resolvePath, type PathSegment } from './paths'
-import type { AgentClient, ModelContextTool, ToolResult } from './types'
+import type { ModelContextTool, ToolResult } from './types'
 
 export interface ToolDeps {
   wizard: ReturnType<typeof useWizardStore>
   router: Pick<Router, 'push' | 'currentRoute'>
-  confirm: (message: string, client?: AgentClient) => Promise<boolean>
+  confirm: (message: string) => Promise<boolean>
 }
 
 type Args = Record<string, unknown>
@@ -120,15 +120,15 @@ export function createTools(deps: ToolDeps): ModelContextTool[] {
     description: string,
     inputSchema: ModelContextTool['inputSchema'],
     readOnly: boolean,
-    execute: (args: Args, client?: AgentClient) => Promise<ToolResult> | ToolResult,
+    execute: (args: Args) => Promise<ToolResult> | ToolResult,
   ): ModelContextTool => ({
     name,
     description,
     inputSchema,
     annotations: { readOnlyHint: readOnly },
-    execute: async (args, client) => {
+    execute: async (args) => {
       try {
-        return await execute(isRecord(args) ? args : {}, client)
+        return await execute(isRecord(args) ? args : {})
       } catch (error) {
         return fail(messageOf(error))
       }
@@ -462,7 +462,7 @@ export function createTools(deps: ToolDeps): ModelContextTool[] {
       'Creates the PDF and saves it as a document in Notion. This has a real side effect, so the user is asked to confirm first. Requires validate_form to report no problems.',
       NONE,
       false,
-      async (_args, client) => {
+      async () => {
         if (!wizard.templateId || !wizard.schema) return fail(NO_TEMPLATE)
         if (wizard.problems.length > 0) {
           return fail('The form is not ready to create.', { problems: wizard.problems })
@@ -471,7 +471,6 @@ export function createTools(deps: ToolDeps): ModelContextTool[] {
         const who = textAt(payload, ['recipient', 'name'])
         const approved = await confirm(
           `An AI assistant wants to create "${wizard.template?.label ?? wizard.templateId}"${who ? ` for ${who}` : ''}. This saves a document to Notion. Allow?`,
-          client,
         )
         if (!approved) return fail('The user declined to create the document.')
 

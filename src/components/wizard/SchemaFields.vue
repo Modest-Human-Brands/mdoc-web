@@ -108,6 +108,11 @@ function colSpan(child: JsonSchema): string {
 
 function set(path: (string | number)[], value: unknown) {
   wizard.setValue(path, value)
+  if (typeof value === 'boolean') wizard.flushPreview()
+}
+
+function blur(events: { onBlur: () => void }, path: (string | number)[]) {
+  if (wizard.submitAttempted || text(path) !== '') events.onBlur()
 }
 
 function messageFor(errors: { message: string }[], path: (string | number)[]): string | undefined {
@@ -149,6 +154,7 @@ function noun(schema: JsonSchema, key: string): string {
                 (v) => {
                   set([...base, key], v)
                   events.onChange()
+                  wizard.flushPreview()
                 }
               "
             />
@@ -162,6 +168,7 @@ function noun(schema: JsonSchema, key: string): string {
                 (v) => {
                   set([...base, key], v)
                   events.onChange()
+                  wizard.flushPreview()
                 }
               "
             />
@@ -187,7 +194,7 @@ function noun(schema: JsonSchema, key: string): string {
               :error="messageFor(errors, [...base, key])"
               :class="colSpan(child)"
               @update:model-value="(v) => set([...base, key], v ?? '')"
-              @focusout="events.onBlur"
+              @focusout="blur(events, [...base, key])"
               @change="events.onChange"
               @input="events.onInput"
             />
@@ -236,7 +243,7 @@ function noun(schema: JsonSchema, key: string): string {
                   :hint="isRequired(block.key) ? undefined : 'optional'"
                   :error="messageFor(errors, [...base, block.key, item.index])"
                   @update:model-value="(v) => set([...base, block.key, item.index], v ?? '')"
-                  @focusout="events.onBlur"
+                  @focusout="blur(events, [...base, block.key, item.index])"
                   @change="events.onChange"
                   @input="events.onInput"
                 />

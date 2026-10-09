@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { NotForm } from 'notform'
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 import UiButton from '@/components/ui/UiButton.vue'
@@ -31,10 +31,21 @@ function chooseAnother() {
   void router.push(STEPS[0].path)
 }
 
+function focusFirstInvalid() {
+  const first = document.querySelector<HTMLElement>('[aria-invalid="true"]')
+  first?.focus()
+  first?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+}
+
 async function next() {
   createError.value = null
+  wizard.submitAttempted = true
   const checked = await wizard.form.validate()
-  if (checked.issues) return
+  if (checked.issues) {
+    await nextTick()
+    focusFirstInvalid()
+    return
+  }
   creating.value = true
   try {
     await wizard.createDocument()
