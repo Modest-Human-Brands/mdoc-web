@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.0.5
+
+[compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.4...v0.0.5)
+
+### 🏡 Chore
+
+- Remove backup configuration file for oxlint ([667636f](https://github.com/Modest-Human-Brands/mdoc-web/commit/667636f))
+- Update dependencies and configuration files ([0f7fb6d](https://github.com/Modest-Human-Brands/mdoc-web/commit/0f7fb6d))
+
+### ❤️ Contributors
+
+- Shirsendu Bairagi ([@shba007](https://github.com/shba007))
+
 ## v0.0.4
 
 [compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.3...v0.0.4)
