@@ -23,6 +23,7 @@
     "docker:start": "docker run --detach --name mdoc-web-dev --env-file .env -p 2000:8080 mdoc-web:dev"
   },
   "dependencies": {
+    "@dotenvx/dotenvx": "^2.34.2",
     "@tato30/vue-pdf": "^2.2.0",
     "@vueuse/core": "^15.0.0",
     "notform": "^3.0.1",
@@ -35,12 +36,12 @@
     "@commitlint/cli": "^21.2.3",
     "@commitlint/config-conventional": "^21.2.3",
     "@fontsource-variable/exo-2": "^5.3.0",
-    "@iconify-json/lucide": "^1.2.140",
+    "@iconify-json/lucide": "^1.2.142",
     "@tailwindcss/vite": "^4.3.3",
     "@tsconfig/node24": "^24.0.5",
     "@types/jsdom": "^30.0.0",
-    "@types/node": "^26.6.4",
-    "@vitejs/plugin-vue": "^6.0.9",
+    "@types/node": "^26.6.5",
+    "@vitejs/plugin-vue": "^6.0.10",
     "@vue/test-utils": "^2.5.1",
     "@vue/tsconfig": "^0.9.1",
     "husky": "^9.1.7",
@@ -59,8 +60,8 @@
   },
   "engines": {
     "bun": "^1.2.9",
-    "node": "^22.11.0 || ^24.14.0",
+    "node": "^22.18.0 || ^24.11.0 || >=26.0.0",
     "pnpm": "^9.15.0 || ^10.2.0 || ^11.0.0"
   },
-  "packageManager": "bun@1.4.2"
+  "packageManager": "bun@1.4.3"
 }

@@ -18,7 +18,7 @@ export default defineConfig({
     singleQuote: true,
   },
   lint: {
-    plugins: ['eslint', 'typescript', 'unicorn', 'oxc', 'vue', 'vitest'],
+    plugins: ['typescript', 'unicorn', 'oxc', 'vue', 'vitest'],
     categories: {
       correctness: 'error',
     },
