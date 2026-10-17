@@ -70,4 +70,8 @@ Per-environment settings are **runtime** variables, not build arguments: when th
 
 ## License
 
-Published under the [MIT](LICENSE) license.
+Published under the [MIT License](https://github.com/Modest-Human-Brands/mdoc-web/blob/main/LICENSE).
+<br><br>
+<a href="https://github.com/Modest-Human-Brands/mdoc-web/graphs/contributors">
+<img src="https://contrib.rocks/image?repo=Modest-Human-Brands/mdoc-web" />
+</a>
