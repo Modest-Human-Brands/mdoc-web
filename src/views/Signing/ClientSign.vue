@@ -8,6 +8,7 @@ import {
   fetchTemplateDetail,
   signingApi,
   type DocumentDetail,
+  type SignerField,
   type VerifySessionResponse,
 } from '@/api'
 import AdoptSignatureDialog from '@/components/signing/AdoptSignatureDialog.vue'
@@ -18,6 +19,7 @@ import { formatDay, signedCount, signerCaption, signersOf } from '@/domain/docum
 import { pdfFileName, saveBlob } from '@/domain/download'
 import { parseSigningLink } from '@/domain/signers'
 import {
+  fieldsOf,
   planFields,
   stateFromSession,
   waitingLabel,
@@ -35,6 +37,7 @@ const detail = ref<DocumentDetail | null>(null)
 const pdf = shallowRef<Blob | null>(null)
 const pdfUrl = useObjectUrl(pdf)
 const plan = ref<FieldPlan>({ signatureIds: [], textFields: [] })
+const myFields = ref<SignerField[]>([])
 const dialogOpen = ref(false)
 const busy = ref(false)
 const failure = ref<string | null>(null)
@@ -74,6 +77,7 @@ async function init() {
       ? await fetchTemplateDetail(loaded.templateId).catch(() => null)
       : null
     plan.value = planFields(template?.signerFields ?? [], session.value.order)
+    myFields.value = fieldsOf(template?.signerFields ?? [], session.value.order)
     state.value = stateFromSession(session.value.status)
   } catch {
     state.value = 'invalid'
@@ -175,7 +179,13 @@ async function downloadSigned() {
       </section>
 
       <div v-else-if="state === 'signing' && detail" class="flex size-full min-h-0 gap-3">
-        <PreviewPanel :label="detail.name" :url="pdfUrl ?? null" :reset-key="detail.id" />
+        <PreviewPanel
+          :label="detail.name"
+          :url="pdfUrl ?? null"
+          :reset-key="detail.id"
+          :fields="myFields"
+          @mark="dialogOpen = true"
+        />
         <aside
           class="flex w-96 shrink-0 flex-col gap-5 overflow-y-auto px-2"
           aria-label="Signing details"
@@ -211,6 +221,9 @@ async function downloadSigned() {
               </li>
             </ul>
           </div>
+          <p v-if="myFields.length > 0" class="text-xs text-light-400">
+            Your signing spots are highlighted in the document. Click one to sign.
+          </p>
           <div
             class="mt-auto flex items-center justify-between gap-3 rounded-xl border border-dark-600 bg-dark-500 p-3"
           >

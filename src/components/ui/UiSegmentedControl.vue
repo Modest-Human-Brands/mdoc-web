@@ -12,7 +12,7 @@ const id = useId()
 </script>
 
 <template>
-  <div class="flex flex-col gap-1.5">
+  <div class="flex min-w-0 flex-col gap-1.5">
     <span v-if="label" :id="id" class="text-sm font-semi-bold text-light-600">{{ label }}</span>
     <div
       role="radiogroup"
@@ -25,7 +25,7 @@ const id = useId()
         type="button"
         role="radio"
         :aria-checked="model === option.value"
-        class="h-8 flex-1 rounded-[6px] px-2 text-sm font-semi-bold outline-none transition-colors focus-visible:shadow-focus-ring"
+        class="h-8 min-w-0 flex-1 truncate rounded-[6px] px-2 text-sm font-semi-bold outline-none transition-colors focus-visible:shadow-focus-ring"
         :class="
           model === option.value ? 'bg-dark-600 text-white' : 'text-light-400 hover:text-white'
         "

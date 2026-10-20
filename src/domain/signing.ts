@@ -36,6 +36,60 @@ export function planFields(fields: readonly SignerField[], order: number): Field
   }
 }
 
+export interface FieldMark {
+  key: string
+  fieldId: string
+  type: SignerField['type']
+  label: string
+  page: number
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
+export const DEFAULT_PAGE_SIZE = { width: 595.28, height: 841.89 }
+
+export function fieldsOf(fields: readonly SignerField[], order: number): SignerField[] {
+  return fields.filter((field) => Number(field.signerOrder) === Number(order))
+}
+
+export function resolvePages(pageIndex: SignerField['pageIndex'], pageCount: number): number[] {
+  if (pageCount < 1) return []
+  const fromIndex = (index: number) => (index < 0 ? pageCount + index : index) + 1
+  let pages: number[]
+  if (pageIndex === 'all-except-last')
+    pages = Array.from({ length: Math.max(0, pageCount - 1) }, (_, i) => i + 1)
+  else if (pageIndex === 'all') pages = Array.from({ length: pageCount }, (_, i) => i + 1)
+  else if (Array.isArray(pageIndex)) pages = pageIndex.map(fromIndex)
+  else if (typeof pageIndex === 'number') pages = [fromIndex(pageIndex)]
+  else pages = [pageCount]
+  return pages.filter((page) => page >= 1 && page <= pageCount)
+}
+
+export function markLabel(field: Pick<SignerField, 'id' | 'type'>): string {
+  if (field.type === 'SIGNATURE') return 'Sign here'
+  if (field.type === 'INITIALS') return 'Initial here'
+  if (field.type === 'DATE') return 'Date'
+  return labelFromFieldId(field.id.replace(/^(client|company|contractor)-/, ''))
+}
+
+export function marksFor(fields: readonly SignerField[], pageCount: number): FieldMark[] {
+  return fields.flatMap((field) =>
+    resolvePages(field.pageIndex, pageCount).map((page) => ({
+      key: `${field.id}:${page}`,
+      fieldId: field.id,
+      type: field.type,
+      label: markLabel(field),
+      page,
+      x: field.x,
+      y: field.y,
+      width: field.width,
+      height: field.height,
+    })),
+  )
+}
+
 export interface SignerSlot {
   order: number
   role: string

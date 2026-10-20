@@ -107,6 +107,14 @@ const booleanOptions = (child: JsonSchema) =>
         { value: 'false', label: 'No' },
       ]
 
+const SEGMENTED_MAX_OPTIONS = 3
+const SEGMENTED_MAX_CHARS = 24
+
+function preferSelect(options: readonly (string | number)[]): boolean {
+  const chars = options.reduce<number>((sum, option) => sum + optionLabel(option).length, 0)
+  return options.length > SEGMENTED_MAX_OPTIONS || chars > SEGMENTED_MAX_CHARS
+}
+
 function colSpan(child: JsonSchema): string {
   return child['x-column'] === 2 ? 'col-span-2' : ''
 }
@@ -159,7 +167,7 @@ function noun(schema: JsonSchema, key: string): string {
               @update:model-value="(v) => set([...base, key], v)"
             />
             <UiSelect
-              v-else-if="child.enum && child.enum.length > 3"
+              v-else-if="child.enum && preferSelect(child.enum)"
               :model-value="text([...base, key])"
               :label="label(key, child)"
               :options="child.enum.map(String)"

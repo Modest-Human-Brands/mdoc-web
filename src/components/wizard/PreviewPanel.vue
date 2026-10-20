@@ -10,11 +10,12 @@ import {
   watch,
 } from 'vue'
 
-import type { TemplatePage } from '@/api'
+import type { SignerField, TemplatePage } from '@/api'
 import UiDocToolbar from '@/components/ui/UiDocToolbar.vue'
 import UiPageRail from '@/components/ui/UiPageRail.vue'
 import { blobFromUrl, pdfFileName, printUrl, saveBlob } from '@/domain/download'
 import { mostVisiblePage } from '@/domain/pages'
+import { marksFor, type FieldMark } from '@/domain/signing'
 import { lastShown, showStage } from '@/composables/previewStage'
 
 import ImagePages from './ImagePages.vue'
@@ -30,7 +31,10 @@ const props = defineProps<{
   fetchDownload?: () => Promise<Blob>
   downloadName?: string
   resetKey?: string | null
+  fields?: SignerField[]
 }>()
+
+const emit = defineEmits<{ mark: [mark: FieldMark] }>()
 
 const PAGE_WIDTH = 520
 const MIN_ZOOM = 50
@@ -214,6 +218,19 @@ function goToPage(target: number) {
   container.scrollTo({ top: container.scrollTop + offset - STAGE_PADDING / 2, behavior: 'smooth' })
 }
 
+let scrolledToMarks = ''
+
+watch(
+  () => [newestReady.value, pageCount.value, props.fields] as const,
+  ([ready, count, fields]) => {
+    const first = ready && fields?.length ? marksFor(fields, count)[0] : undefined
+    const key = first ? `${props.resetKey}:${count}:${fields?.length}` : ''
+    if (!first || key === scrolledToMarks) return
+    scrolledToMarks = key
+    if (first.page > 1) goToPage(first.page)
+  },
+)
+
 function print() {
   if (props.url) printUrl(props.url)
 }
@@ -236,6 +253,7 @@ let drag: { x: number; y: number; left: number; top: number } | null = null
 
 function onPointerDown(event: PointerEvent) {
   if (!stage.value || event.button !== 0) return
+  if ((event.target as HTMLElement | null)?.closest('[data-mark]')) return
   drag = {
     x: event.clientX,
     y: event.clientY,
@@ -342,7 +360,9 @@ function onPointerUp(event: PointerEvent) {
               v-else-if="layer.url"
               :url="layer.url"
               :width="pageWidth"
+              :fields="fields"
               @pages="onLayerPages(layer.id, $event)"
+              @mark="emit('mark', $event)"
               @aspect="onPdfAspect(layer.id, $event)"
               @failed="renderError = $event"
             />
