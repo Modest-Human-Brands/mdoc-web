@@ -32,3 +32,15 @@ export async function blobFromUrl(url: string): Promise<Blob> {
   if (!response.ok) throw new Error(`Download failed (${response.status}).`)
   return await response.blob()
 }
+
+export function printUrl(url: string): void {
+  const frame = document.createElement('iframe')
+  frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0'
+  frame.src = url
+  frame.onload = () => {
+    frame.contentWindow?.focus()
+    frame.contentWindow?.print()
+    useTimeoutFn(() => frame.remove(), 60_000)
+  }
+  document.body.append(frame)
+}

@@ -5,6 +5,7 @@ import { computed } from 'vue'
 import type { JsonSchema } from '@/api'
 import DecorPicker from '@/components/wizard/DecorPicker.vue'
 import UiAddButton from '@/components/ui/UiAddButton.vue'
+import ClientPicker from '@/components/wizard/ClientPicker.vue'
 import UiSegmentedControl from '@/components/ui/UiSegmentedControl.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
 import UiTextField from '@/components/ui/UiTextField.vue'
@@ -17,6 +18,8 @@ import {
   orderedProperties,
   singularLabel,
 } from '@/domain/schema'
+import { findClient } from '@/composables/useClients'
+import { coveredKeys } from '@/domain/clients'
 import { useWizardStore } from '@/stores/wizard'
 
 defineOptions({ name: 'SchemaFields' })
@@ -24,6 +27,7 @@ defineOptions({ name: 'SchemaFields' })
 const props = defineProps<{
   schema: JsonSchema
   path?: (string | number)[]
+  hidden?: string[]
 }>()
 
 const wizard = useWizardStore()
@@ -37,6 +41,7 @@ type Block =
 const blocks = computed<Block[]>(() => {
   const result: Block[] = []
   for (const [key, child] of orderedProperties(props.schema)) {
+    if (props.hidden?.includes(key)) continue
     if (isObjectSchema(child)) result.push({ kind: 'section', key, schema: child })
     else if (child.type === 'array') result.push({ kind: 'array', key, schema: child })
     else {
@@ -117,6 +122,15 @@ function blur(events: { onBlur: () => void }, path: (string | number)[]) {
 
 function messageFor(errors: { message: string }[], path: (string | number)[]): string | undefined {
   return errors[0]?.message ?? wizard.externalErrors[dotted(path)]
+}
+
+function isRecipient(key: string, schema: JsonSchema): boolean {
+  return base.value.length === 0 && key === 'recipient' && Boolean(schema.properties?.name)
+}
+
+function hiddenFor(key: string, schema: JsonSchema): string[] {
+  if (!isRecipient(key, schema)) return []
+  return coveredKeys(findClient(wizard.clientId), Object.keys(schema.properties ?? {}))
 }
 
 function noun(schema: JsonSchema, key: string): string {
@@ -206,7 +220,15 @@ function noun(schema: JsonSchema, key: string): string {
         <h3 class="text-xs tracking-[0.06em] text-light-400 uppercase">
           {{ block.schema['x-section'] ?? block.schema.title ?? labelFromPath(block.key) }}
         </h3>
-        <SchemaFields :schema="block.schema" :path="[...base, block.key]" />
+        <ClientPicker
+          v-if="isRecipient(block.key, block.schema)"
+          :keys="Object.keys(block.schema.properties ?? {})"
+        />
+        <SchemaFields
+          :schema="block.schema"
+          :path="[...base, block.key]"
+          :hidden="hiddenFor(block.key, block.schema)"
+        />
       </section>
 
       <NotArrayField

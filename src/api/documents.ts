@@ -3,6 +3,7 @@ import type {
   DocumentDetail,
   NumberingResponse,
   DocumentList,
+  DocumentListParams,
   UpdateDocumentRequest,
   UpdateDocumentResponse,
   VoidDocumentResponse,
@@ -23,8 +24,8 @@ export const documentsApi = {
       signal,
     }),
 
-  list: (params: { limit?: number; offset?: number } = {}, signal?: AbortSignal) =>
-    request<DocumentList>('/document', { query: params, signal }),
+  list: (params: DocumentListParams = {}, signal?: AbortSignal) =>
+    request<DocumentList>('/document', { query: { ...params }, signal }),
 
   get: (id: string, signal?: AbortSignal) => request<DocumentDetail>(docPath(id), { signal }),
 

@@ -1,6 +1,16 @@
 # MDoc Web
 
-Vue 3 + TypeScript + Tailwind CSS v4 web app for creating documents from templates through the MDoc API (the "New document" wizard: Template → Brand → Details → Review & download).
+Vue 3 + TypeScript + Tailwind CSS v4 web app for creating documents from templates through the MDoc API (the 3-step "New document" wizard: Template → Details → Review & download), plus branding settings, a documents list and detail, sending for signature, and a public client signing page.
+
+## Screens
+
+| Route                                          | Screen                                                                                                                                                                    |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/new/template`, `/new/details`, `/new/review` | The document wizard. The Details step has a client picker (clients are stored in this browser and filled into `recipient`).                                               |
+| `/settings/brand`                              | Branding settings, opened with "Change branding" from the wizard.                                                                                                         |
+| `/documents`, `/documents/:id`                 | Documents list (status filter, paging) and detail (status, signers, activity, download, void, verify).                                                                    |
+| `/documents/:id/send`                          | Send for signature: signers in order, link expiry, first signing link. Uses `POST /document/:id/envelope`, which is in the backend but not yet in the Postman collection. |
+| `/s/:id/:token`                                | Public client signing page (all signatures use server signing).                                                                                                           |
 
 ## Getting started
 

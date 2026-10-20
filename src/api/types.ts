@@ -1,10 +1,3 @@
-export interface HealthResponse {
-  status: 'OK'
-  version?: string | null
-  buildTime?: string | null
-  node: string
-}
-
 export interface TemplateSummary {
   id: string
   label: string
@@ -273,4 +266,33 @@ export interface DecorUpload {
 export interface FontSummary {
   family: string
   name: string
+}
+export type RoutingType = 'SEQUENTIAL' | 'PARALLEL'
+
+export type SignerStatus = 'PENDING' | 'SIGNED' | 'DECLINED' | 'CANCELLED' | (string & {})
+
+export interface SignerQueueEntry {
+  order: number
+  name: string
+  email: string
+  role: string
+  status: SignerStatus
+}
+
+export interface EnvelopeRequest {
+  routingType: RoutingType
+  signers: Pick<SignerQueueEntry, 'order' | 'name' | 'email' | 'role'>[]
+}
+
+export interface EnvelopeResponse {
+  status: string
+  nextSigner: string
+  queueSize: number
+}
+
+export interface DocumentListParams {
+  limit?: number
+  offset?: number
+  status?: string
+  templateId?: string
 }

@@ -2,16 +2,22 @@
 import { useRouter } from 'vue-router'
 
 import UiStepper from '@/components/ui/UiStepper.vue'
-import { STEPS, useWizardStore } from '@/stores/wizard'
+import { BRAND_PATH, STEPS, useWizardStore } from '@/stores/wizard'
 
 defineProps<{
-  step: number
+  step?: number
   title: string
   subtitle: string
 }>()
 
+const emit = defineEmits<{ close: [] }>()
+
 const router = useRouter()
 const wizard = useWizardStore()
+
+function changeBranding() {
+  void router.push({ path: BRAND_PATH, query: { from: router.currentRoute.value.fullPath } })
+}
 
 async function cancel() {
   if (
@@ -38,16 +44,34 @@ async function cancel() {
           </span>
           <h1 class="text-base font-bold text-white">MDoc</h1>
         </div>
-        <button
-          type="button"
-          class="text-sm font-bold text-light-400 outline-none hover:text-white focus-visible:shadow-focus-ring"
-          @click="cancel"
-        >
-          Cancel
-        </button>
+        <div class="flex items-center gap-4">
+          <button
+            v-if="step !== undefined"
+            type="button"
+            class="text-sm font-bold text-light-400 outline-none hover:text-white focus-visible:shadow-focus-ring"
+            @click="router.push('/documents')"
+          >
+            Documents
+          </button>
+          <button
+            v-if="step !== undefined"
+            type="button"
+            class="rounded-full border border-dark-600 bg-dark-500 px-3 py-1 text-xs font-semi-bold text-white outline-none hover:bg-dark-600 focus-visible:shadow-focus-ring"
+            @click="changeBranding"
+          >
+            Change branding
+          </button>
+          <button
+            type="button"
+            class="text-sm font-bold text-light-400 outline-none hover:text-white focus-visible:shadow-focus-ring"
+            @click="step === undefined ? emit('close') : cancel()"
+          >
+            {{ step === undefined ? 'Close' : 'Cancel' }}
+          </button>
+        </div>
       </header>
 
-      <UiStepper :steps="STEPS.map((s) => s.label)" :current="step" />
+      <UiStepper v-if="step !== undefined" :steps="STEPS.map((s) => s.label)" :current="step" />
 
       <div class="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto pr-1 scrollbar-none">
         <div class="flex flex-col gap-1">

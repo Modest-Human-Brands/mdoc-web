@@ -245,7 +245,7 @@ export function createTools(deps: ToolDeps): ModelContextTool[] {
 
     tool(
       'go_to_step',
-      'Navigates the wizard. Steps: template, brand, details, review. The router may redirect (e.g. review needs a created document).',
+      'Navigates the wizard. Steps: template, details, review. The router may redirect (e.g. review needs a created document).',
       {
         type: 'object',
         properties: { step: { type: 'string', enum: STEPS.map((s) => s.name) } },
@@ -476,7 +476,7 @@ export function createTools(deps: ToolDeps): ModelContextTool[] {
 
         try {
           const doc = await wizard.createDocument()
-          await router.push(STEPS[3].path)
+          await router.push(STEPS[2].path)
           return ok({
             documentId: doc.id,
             name: doc.name,

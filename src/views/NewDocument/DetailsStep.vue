@@ -49,7 +49,7 @@ async function next() {
   creating.value = true
   try {
     await wizard.createDocument()
-    await router.push(STEPS[3].path)
+    await router.push(STEPS[2].path)
   } catch (e) {
     createError.value = errorMessage(e)
   } finally {
@@ -60,7 +60,7 @@ async function next() {
 
 <template>
   <WizardShell
-    :step="2"
+    :step="1"
     :title="`${label} details`"
     :subtitle="
       wizard.showAmountDue
@@ -98,7 +98,7 @@ async function next() {
 
     <template #note>{{ note }}</template>
     <template #actions>
-      <UiButton variant="ghost" @click="router.push(STEPS[1].path)">Back</UiButton>
+      <UiButton variant="ghost" @click="router.push(STEPS[0].path)">Back</UiButton>
       <UiButton :disabled="creating || !wizard.schema || !wizard.idsReady" @click="next">
         {{ creating ? 'Creating…' : 'Review & download' }}
       </UiButton>

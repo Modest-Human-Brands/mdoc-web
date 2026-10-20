@@ -6,7 +6,7 @@ useActiveTemplate()
 
 <template>
   <RouterView v-slot="{ Component, route }">
-    <KeepAlive :include="['TemplateStep', 'BrandStep', 'DetailsStep', 'ReviewStep']">
+    <KeepAlive :include="['TemplateStep', 'BrandSettings', 'DetailsStep', 'ReviewStep']">
       <component :is="Component" :key="route.name" />
     </KeepAlive>
   </RouterView>

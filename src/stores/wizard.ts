@@ -14,6 +14,7 @@ import {
   type TemplateDetail,
 } from '@/api'
 import { config } from '@/config'
+import { recipientPatch, type Client } from '@/domain/clients'
 import { buildFormSchema, emptyFormSchema, validateForm } from '@/domain/formSchema'
 import {
   computeTotals,
@@ -40,9 +41,10 @@ import {
   type Values,
 } from '@/domain/schema'
 
+export const BRAND_PATH = '/settings/brand'
+
 export const STEPS = [
   { name: 'template', label: 'Template', path: '/new/template' },
-  { name: 'brand', label: 'Brand', path: '/new/brand' },
   { name: 'details', label: 'Details', path: '/new/details' },
   { name: 'review', label: 'Review & download', path: '/new/review' },
 ] as const
@@ -58,6 +60,7 @@ const IDS_KEY = 'mdoc.ids'
 
 interface Draft {
   templateId: string | null
+  clientId: string | null
   values: Values
 }
 
@@ -68,6 +71,7 @@ export const useWizardStore = defineStore('wizard', () => {
   const saved = draft.value
 
   const templateId = ref<string | null>(saved?.templateId ?? null)
+  const clientId = ref<string | null>(saved?.clientId ?? null)
   const template = ref<TemplateDetail | null>(null)
   const schema = computed(() => (template.value ? stripExcluded(template.value.schema) : null))
   const formSchema = computed(() =>
@@ -236,6 +240,7 @@ export const useWizardStore = defineStore('wizard', () => {
   function selectTemplate(id: string | null) {
     if (templateId.value === id) return
     templateId.value = id
+    clientId.value = null
     submitAttempted.value = false
     template.value = null
     templateError.value = null
@@ -269,6 +274,18 @@ export const useWizardStore = defineStore('wizard', () => {
   function setValue(path: (string | number)[], value: unknown) {
     form.setValue(path.join('.'), value)
     serverErrors.value = serverErrors.value.filter((e) => e.field !== path.join('.'))
+  }
+
+  function selectClient(client: Client, keys: readonly string[]) {
+    clientId.value = client.id
+    for (const [key, value] of Object.entries(recipientPatch(client, keys))) {
+      setValue(['recipient', key], value)
+    }
+    flushPreview()
+  }
+
+  function clearClient() {
+    clientId.value = null
   }
 
   function setPreviewWarnings(warnings: PreviewWarning[]) {
@@ -311,8 +328,14 @@ export const useWizardStore = defineStore('wizard', () => {
     return document.value
   }
 
+  function discardOrganizationChanges() {
+    organizationForm.reset(loadOrganization())
+    organizationSaved.value = true
+  }
+
   function reset() {
     templateId.value = null
+    clientId.value = null
     submitAttempted.value = false
     template.value = null
     form.reset({})
@@ -342,15 +365,22 @@ export const useWizardStore = defineStore('wizard', () => {
   )
 
   watch(
-    [templateId, values],
+    [templateId, clientId, values],
     () => {
-      draft.value = { templateId: templateId.value, values } satisfies Draft
+      draft.value = {
+        templateId: templateId.value,
+        clientId: clientId.value,
+        values,
+      } satisfies Draft
     },
     { deep: true },
   )
 
   return {
     templateId,
+    clientId,
+    selectClient,
+    clearClient,
     template,
     schema,
     values,
@@ -387,6 +417,7 @@ export const useWizardStore = defineStore('wizard', () => {
     setPreviewWarnings,
     previewHints,
     saveOrganizationProfile,
+    discardOrganizationChanges,
     createDocument,
     reset,
   }

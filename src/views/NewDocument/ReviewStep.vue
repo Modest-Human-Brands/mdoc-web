@@ -46,7 +46,7 @@ async function download() {
 
 <template>
   <WizardShell
-    :step="3"
+    :step="2"
     title="Review and download"
     subtitle="This is exactly what went into the PDF. Go back to change anything."
   >
@@ -94,7 +94,14 @@ async function download() {
 
     <template #note>{{ `${label} ready to download` }}</template>
     <template #actions>
-      <UiButton variant="ghost" @click="router.push(STEPS[2].path)">Back</UiButton>
+      <UiButton variant="ghost" @click="router.push(STEPS[1].path)">Back</UiButton>
+      <UiButton
+        variant="secondary"
+        :disabled="!wizard.document"
+        @click="wizard.document && router.push(`/documents/${wizard.document.id}/send`)"
+      >
+        Send for signature
+      </UiButton>
       <UiButton :disabled="!wizard.document || downloading" @click="download">
         {{ downloading ? 'Downloading…' : 'Download PDF' }}
       </UiButton>

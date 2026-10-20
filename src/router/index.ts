@@ -1,6 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-import { STEPS, useWizardStore } from '@/stores/wizard'
+import { BRAND_PATH, STEPS, useWizardStore } from '@/stores/wizard'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -12,19 +12,39 @@ const router = createRouter({
       component: () => import('@/views/NewDocument/TemplateStep.vue'),
     },
     {
-      path: STEPS[1].path,
+      path: BRAND_PATH,
       name: 'brand',
-      component: () => import('@/views/NewDocument/BrandStep.vue'),
+      component: () => import('@/views/Settings/BrandSettings.vue'),
     },
     {
-      path: STEPS[2].path,
+      path: STEPS[1].path,
       name: 'details',
       component: () => import('@/views/NewDocument/DetailsStep.vue'),
     },
     {
-      path: STEPS[3].path,
+      path: STEPS[2].path,
       name: 'review',
       component: () => import('@/views/NewDocument/ReviewStep.vue'),
+    },
+    {
+      path: '/documents',
+      name: 'documents',
+      component: () => import('@/views/Documents/DocumentsList.vue'),
+    },
+    {
+      path: '/documents/:id',
+      name: 'document',
+      component: () => import('@/views/Documents/DocumentDetail.vue'),
+    },
+    {
+      path: '/documents/:id/send',
+      name: 'send',
+      component: () => import('@/views/Documents/SendForSignature.vue'),
+    },
+    {
+      path: '/s/:id/:token',
+      name: 'sign',
+      component: () => import('@/views/Signing/ClientSign.vue'),
     },
     { path: '/:pathMatch(.*)*', redirect: STEPS[0].path },
   ],
@@ -33,8 +53,9 @@ const router = createRouter({
 router.beforeEach((to) => {
   const wizard = useWizardStore()
 
+  if (['brand', 'documents', 'document', 'send', 'sign'].includes(String(to.name))) return true
   if (to.name !== 'template' && !wizard.templateId) return STEPS[0].path
-  if (to.name === 'review' && !wizard.document) return STEPS[2].path
+  if (to.name === 'review' && !wizard.document) return STEPS[1].path
   return true
 })
 

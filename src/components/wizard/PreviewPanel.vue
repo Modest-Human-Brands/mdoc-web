@@ -13,7 +13,7 @@ import {
 import type { TemplatePage } from '@/api'
 import UiDocToolbar from '@/components/ui/UiDocToolbar.vue'
 import UiPageRail from '@/components/ui/UiPageRail.vue'
-import { blobFromUrl, pdfFileName, saveBlob } from '@/domain/download'
+import { blobFromUrl, pdfFileName, printUrl, saveBlob } from '@/domain/download'
 import { mostVisiblePage } from '@/domain/pages'
 import { lastShown, showStage } from '@/composables/previewStage'
 
@@ -215,16 +215,7 @@ function goToPage(target: number) {
 }
 
 function print() {
-  if (!props.url) return
-  const frame = document.createElement('iframe')
-  frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0'
-  frame.src = props.url
-  frame.onload = () => {
-    frame.contentWindow?.focus()
-    frame.contentWindow?.print()
-    setTimeout(() => frame.remove(), 60_000)
-  }
-  document.body.append(frame)
+  if (props.url) printUrl(props.url)
 }
 
 async function download() {

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { NotField, NotForm } from 'notform'
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 import UiButton from '@/components/ui/UiButton.vue'
 import UiColorField from '@/components/ui/UiColorField.vue'
@@ -22,6 +22,7 @@ import {
 import { STEPS, useWizardStore } from '@/stores/wizard'
 
 const router = useRouter()
+const route = useRoute()
 const wizard = useWizardStore()
 const org = computed(() => wizard.organization)
 
@@ -78,15 +79,25 @@ async function next() {
     return
   }
   wizard.saveOrganizationProfile()
-  void router.push(STEPS[2].path)
+  leave()
+}
+
+function leave() {
+  const from = typeof route.query.from === 'string' ? route.query.from : STEPS[0].path
+  void router.push(from)
+}
+
+function cancel() {
+  wizard.discardOrganizationChanges()
+  leave()
 }
 </script>
 
 <template>
   <WizardShell
-    :step="1"
-    title="Make it yours"
-    subtitle="Fill this once. Every document you create will use it."
+    title="Brand"
+    subtitle="Set it once. Every document you create uses it."
+    @close="cancel"
   >
     <NotForm :form="wizard.organizationForm" class="flex flex-col gap-3.5" @submit.prevent>
       <UiLogoUpload v-model="org.logo" />
@@ -233,8 +244,8 @@ async function next() {
       {{ wizard.organizationSaved ? 'Saved on this device' : 'Unsaved changes' }}
     </template>
     <template #actions>
-      <UiButton variant="ghost" @click="router.push(STEPS[0].path)">Back</UiButton>
-      <UiButton @click="next">Continue to details</UiButton>
+      <UiButton variant="ghost" @click="cancel">Cancel</UiButton>
+      <UiButton @click="next">Save & continue</UiButton>
     </template>
 
     <template #preview>

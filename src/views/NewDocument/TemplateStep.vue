@@ -89,7 +89,7 @@ async function next() {
       <UiButton v-if="selected" variant="ghost" @click="wizard.selectTemplate(null)">
         Choose another
       </UiButton>
-      <UiButton :disabled="!selected" @click="next">Use this template</UiButton>
+      <UiButton :disabled="!selected" @click="next">Continue</UiButton>
     </template>
 
     <template #preview>

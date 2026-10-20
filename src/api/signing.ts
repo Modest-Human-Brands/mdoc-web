@@ -2,6 +2,8 @@ import { request } from './http'
 import type {
   CreateSessionRequest,
   CreateSessionResponse,
+  EnvelopeRequest,
+  EnvelopeResponse,
   PrepareSigningRequest,
   PrepareSigningResponse,
   SignResponse,
@@ -12,6 +14,9 @@ import type {
 const docPath = (id: string) => `/document/${encodeURIComponent(id)}`
 
 export const signingApi = {
+  sendEnvelope: (id: string, body: EnvelopeRequest, signal?: AbortSignal) =>
+    request<EnvelopeResponse>(`${docPath(id)}/envelope`, { method: 'POST', body, signal }),
+
   createSession: (id: string, body: CreateSessionRequest, signal?: AbortSignal) =>
     request<CreateSessionResponse>(`${docPath(id)}/session`, { method: 'POST', body, signal }),
 

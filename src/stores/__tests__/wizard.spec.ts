@@ -56,6 +56,28 @@ describe('wizard store', () => {
     vi.unstubAllGlobals()
   })
 
+  it('fills the recipient from a chosen client and forgets the client with the template', () => {
+    const wizard = useWizardStore()
+    wizard.selectTemplate('invoice')
+    wizard.applyTemplate(invoice)
+
+    wizard.selectClient(
+      { id: 'c1', name: 'Chai Theory', email: 'a@chai.in', phone: '+91 1', address: 'Mumbai' },
+      ['name', 'address', 'email', 'phone'],
+    )
+
+    expect(wizard.clientId).toBe('c1')
+    expect(wizard.values.recipient).toMatchObject({
+      name: 'Chai Theory',
+      email: 'a@chai.in',
+      phone: '+91 1',
+      address: 'Mumbai',
+    })
+
+    wizard.selectTemplate('quotation')
+    expect(wizard.clientId).toBeNull()
+  })
+
   it('applies server defaults from the schema without overwriting input', () => {
     const wizard = useWizardStore()
     wizard.selectTemplate('invoice')
