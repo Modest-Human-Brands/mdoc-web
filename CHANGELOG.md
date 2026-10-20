@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.0.6
+
+[compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.5...v0.0.6)
+
+### 🚀 Enhancements
+
+- Documents, send for signature and client signing flows ([30ac44d](https://github.com/Modest-Human-Brands/mdoc-web/commit/30ac44d))
+- **signing:** Highlight the signer's spots in the document ([f9e8e23](https://github.com/Modest-Human-Brands/mdoc-web/commit/f9e8e23))
+
+### 🩹 Fixes
+
+- **signing:** Derive signer count from the template's signer fields ([a02564e](https://github.com/Modest-Human-Brands/mdoc-web/commit/a02564e))
+
+### 📖 Documentation
+
+- Update license link and add contributors section ([5b85f1c](https://github.com/Modest-Human-Brands/mdoc-web/commit/5b85f1c))
+
+### ❤️ Contributors
+
+- Shirsendu Bairagi <shirsendu2001@gmail.com>
+
 ## v0.0.5
 
 [compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.4...v0.0.5)
