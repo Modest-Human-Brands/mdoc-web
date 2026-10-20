@@ -7,6 +7,7 @@ import {
   labelFromFieldId,
   missingText,
   planFields,
+  signerSlots,
   stateFromSession,
   waitingLabel,
   waitingOn,
@@ -19,6 +20,19 @@ const fields = [
 ] as unknown as SignerField[]
 
 describe('signing', () => {
+  it('derives one slot per signer order the template defines', () => {
+    expect(signerSlots([])).toEqual([])
+    expect(signerSlots(fields.slice(0, 2))).toEqual([{ order: 1, role: 'Signer' }])
+    const contract = [
+      { id: 'contractor-signature', type: 'SIGNATURE', signerOrder: 1 },
+      { id: 'company-signature', type: 'SIGNATURE', signerOrder: 2 },
+    ] as unknown as SignerField[]
+    expect(signerSlots(contract)).toEqual([
+      { order: 1, role: 'Contractor' },
+      { order: 2, role: 'Company' },
+    ])
+  })
+
   it('labels text fields from their ids', () => {
     expect(labelFromFieldId('signer-title')).toBe('Title')
     expect(labelFromFieldId('signer-job_role')).toBe('Job role')

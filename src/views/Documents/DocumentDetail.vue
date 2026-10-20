@@ -3,7 +3,7 @@ import { useClipboard, useObjectUrl } from '@vueuse/core'
 import { computed, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { documentsApi, signingApi, type DocumentDetail } from '@/api'
+import { documentsApi, fetchTemplateDetail, signingApi, type DocumentDetail } from '@/api'
 import VoidDialog from '@/components/documents/VoidDialog.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import PreviewPanel from '@/components/wizard/PreviewPanel.vue'
@@ -20,6 +20,7 @@ import {
 } from '@/domain/documents'
 import { formatBytes } from '@/domain/format'
 import { expiryIso, signingLink } from '@/domain/signers'
+import { signerSlots } from '@/domain/signing'
 
 const route = useRoute()
 const router = useRouter()
@@ -35,6 +36,7 @@ const showVoid = ref(false)
 const savingStatus = ref(false)
 const verifyResult = ref<string | null>(null)
 const linkNote = ref<string | null>(null)
+const signable = ref(true)
 const { copy } = useClipboard()
 
 const signers = computed(() => (detail.value ? signersOf(detail.value) : []))
@@ -56,6 +58,10 @@ async function load() {
     ])
     detail.value = loaded
     pdf.value = blob
+    const template = loaded.templateId
+      ? await fetchTemplateDetail(loaded.templateId).catch(() => null)
+      : null
+    signable.value = !template || signerSlots(template.signerFields ?? []).length > 0
   } catch (e) {
     error.value = errorMessage(e)
   } finally {
@@ -235,7 +241,7 @@ async function changeStatus(event: Event) {
           </UiButton>
           <UiButton variant="ghost" :disabled="!canVoid" @click="showVoid = true">Void</UiButton>
           <UiButton
-            v-if="canSend(detail.status)"
+            v-if="canSend(detail.status) && signable"
             @click="router.push(`/documents/${detail.id}/send`)"
           >
             Send for signature

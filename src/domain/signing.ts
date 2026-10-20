@@ -36,6 +36,26 @@ export function planFields(fields: readonly SignerField[], order: number): Field
   }
 }
 
+export interface SignerSlot {
+  order: number
+  role: string
+}
+
+function roleFromFieldId(id: string): string {
+  const prefix = id.split('-')[0] ?? ''
+  if (prefix === '' || prefix === 'signer') return 'Signer'
+  return prefix.charAt(0).toUpperCase() + prefix.slice(1)
+}
+
+export function signerSlots(fields: readonly SignerField[]): SignerSlot[] {
+  const orders = fields.map((field) => Number(field.signerOrder)).filter((n) => n >= 1)
+  const count = orders.length > 0 ? Math.max(...orders) : 0
+  return Array.from({ length: count }, (_, index) => {
+    const first = fields.find((field) => Number(field.signerOrder) === index + 1)
+    return { order: index + 1, role: first ? roleFromFieldId(first.id) : 'Signer' }
+  })
+}
+
 export function fieldValues(
   plan: FieldPlan,
   signature: string,

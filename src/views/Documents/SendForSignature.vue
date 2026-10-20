@@ -4,7 +4,7 @@ import { NotArrayField, NotField, NotForm, useNotForm } from 'notform'
 import { computed, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { documentsApi, signingApi, type DocumentDetail } from '@/api'
+import { documentsApi, fetchTemplateDetail, signingApi, type DocumentDetail } from '@/api'
 import UiAddButton from '@/components/ui/UiAddButton.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiTextField from '@/components/ui/UiTextField.vue'
@@ -22,6 +22,7 @@ import {
   signingLink,
   type SignerRow,
 } from '@/domain/signers'
+import { signerSlots, type SignerSlot } from '@/domain/signing'
 
 const route = useRoute()
 const router = useRouter()
@@ -34,6 +35,9 @@ const loadError = ref<string | null>(null)
 const sendError = ref<string | null>(null)
 const sending = ref(false)
 const link = ref<string | null>(null)
+const slots = ref<SignerSlot[] | null>(null)
+const fixed = computed(() => slots.value !== null && slots.value.length > 0)
+const unsignable = computed(() => slots.value !== null && slots.value.length === 0)
 
 const form = useNotForm({
   schema: signersFormSchema,
@@ -56,16 +60,25 @@ function recipientOf(raw: Record<string, unknown> | null): Partial<SignerRow> | 
   return null
 }
 
-function initialSigners(loaded: DocumentDetail): SignerRow[] {
-  const rows: SignerRow[] = []
+function initialSigners(loaded: DocumentDetail, slotList: SignerSlot[] | null): SignerRow[] {
   const recipient = recipientOf(loaded.rawData)
-  if (recipient)
-    rows.push({ name: recipient.name ?? '', email: recipient.email ?? '', role: 'Client' })
   const organisation = loadOrganization()
-  if (organisation.name.trim() !== '' && organisation.contactEmail.trim() !== '') {
-    rows.push({ name: organisation.name, email: organisation.contactEmail, role: 'Organisation' })
+  const hasOrganisation = organisation.name.trim() !== '' && organisation.contactEmail.trim() !== ''
+  if (slotList === null) {
+    const rows: SignerRow[] = []
+    if (recipient)
+      rows.push({ name: recipient.name ?? '', email: recipient.email ?? '', role: 'Client' })
+    if (hasOrganisation)
+      rows.push({ name: organisation.name, email: organisation.contactEmail, role: 'Organisation' })
+    return rows.length > 0 ? rows : [emptySigner()]
   }
-  return rows.length > 0 ? rows : [emptySigner()]
+  return slotList.map((slot, index) => {
+    if (index === 0 && recipient)
+      return { name: recipient.name ?? '', email: recipient.email ?? '', role: slot.role }
+    if (index === slotList.length - 1 && slotList.length > 1 && hasOrganisation)
+      return { name: organisation.name, email: organisation.contactEmail, role: slot.role }
+    return { name: '', email: '', role: slot.role }
+  })
 }
 
 async function load() {
@@ -77,7 +90,11 @@ async function load() {
     ])
     detail.value = loaded
     pdf.value = blob
-    form.reset({ signers: initialSigners(loaded), expiresInDays: '7' })
+    const template = loaded.templateId
+      ? await fetchTemplateDetail(loaded.templateId).catch(() => null)
+      : null
+    slots.value = template ? signerSlots(template.signerFields ?? []) : null
+    form.reset({ signers: initialSigners(loaded, slots.value), expiresInDays: '7' })
   } catch (e) {
     loadError.value = errorMessage(e)
   }
@@ -171,7 +188,17 @@ async function send() {
           </span>
         </div>
 
-        <NotForm :form="form" class="flex flex-col gap-4" @submit.prevent="send">
+        <p
+          v-if="unsignable"
+          class="rounded-lg border border-dark-600 bg-dark-500 p-4 text-sm text-light-500"
+        >
+          This template has no signature fields, so it can't be sent for signature.
+        </p>
+        <p v-else-if="fixed" class="text-xs text-light-400">
+          This template needs {{ slots!.length }} {{ slots!.length === 1 ? 'signer' : 'signers' }}.
+        </p>
+
+        <NotForm v-if="!unsignable" :form="form" class="flex flex-col gap-4" @submit.prevent="send">
           <NotArrayField v-slot="{ items, append, remove, errors: listErrors }" path="signers">
             <div class="flex flex-col gap-3">
               <div
@@ -184,7 +211,7 @@ async function send() {
                     {{ ordinalLabel(item.index, items.length) }}
                   </span>
                   <button
-                    v-if="items.length > 1"
+                    v-if="!fixed && items.length > 1"
                     type="button"
                     class="font-semi-bold text-light-400 hover:text-white"
                     @click="remove(item.index)"
@@ -212,13 +239,17 @@ async function send() {
                       @input="events.onInput"
                     />
                   </NotField>
-                  <UiTextField v-model="form.values.signers[item.index]!.role" label="Role" />
+                  <UiTextField
+                    v-model="form.values.signers[item.index]!.role"
+                    label="Role"
+                    :readonly="fixed"
+                  />
                 </div>
               </div>
               <p v-if="listErrors[0]" class="text-xs text-alert-400" role="alert">
                 {{ listErrors[0].message }}
               </p>
-              <UiAddButton @click="append(emptySigner())">Add signer</UiAddButton>
+              <UiAddButton v-if="!fixed" @click="append(emptySigner())">Add signer</UiAddButton>
             </div>
           </NotArrayField>
 
@@ -245,7 +276,7 @@ async function send() {
 
         <div class="mt-auto flex items-center justify-end gap-2">
           <UiButton variant="ghost" @click="router.push(`/documents/${id}`)">Back</UiButton>
-          <UiButton :disabled="sending || detail === null" @click="send">
+          <UiButton :disabled="sending || detail === null || unsignable" @click="send">
             {{ sending ? 'Sending…' : 'Send for signature' }}
           </UiButton>
         </div>

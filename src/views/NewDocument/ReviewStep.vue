@@ -10,6 +10,7 @@ import { errorMessage } from '@/composables/useTemplates'
 import { blobFromUrl, pdfFileName, saveBlob } from '@/domain/download'
 import { formatBytes } from '@/domain/format'
 import { buildReview, organizationReview } from '@/domain/review'
+import { signerSlots } from '@/domain/signing'
 import { STEPS, useWizardStore } from '@/stores/wizard'
 
 const router = useRouter()
@@ -42,6 +43,9 @@ async function download() {
     downloading.value = false
   }
 }
+const signable = computed(
+  () => !wizard.template || signerSlots(wizard.template.signerFields ?? []).length > 0,
+)
 </script>
 
 <template>
@@ -96,6 +100,7 @@ async function download() {
     <template #actions>
       <UiButton variant="ghost" @click="router.push(STEPS[1].path)">Back</UiButton>
       <UiButton
+        v-if="signable"
         variant="secondary"
         :disabled="!wizard.document"
         @click="wizard.document && router.push(`/documents/${wizard.document.id}/send`)"
