@@ -14,7 +14,7 @@ const props = withDefaults(defineProps<{ label: string; variant?: 'branded' | 'f
 const wizard = useWizardStore()
 
 const previewTemplate = computed(() => (wizard.schema ? wizard.templateId : null))
-const { url, pageCount, warnings, loading, error } = usePreview(
+const { url, pageCount, warnings, loading, error, recover } = usePreview(
   previewTemplate,
   () => (props.variant === 'branded' ? wizard.brandPreviewVariables : wizard.previewVariables),
   () => props.variant,
@@ -52,5 +52,6 @@ const downloadName = computed(
     :error="error"
     :fetch-download="fetchDownload"
     :download-name="downloadName"
+    @load-failed="recover"
   />
 </template>

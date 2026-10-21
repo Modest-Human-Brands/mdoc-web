@@ -34,7 +34,7 @@ const props = defineProps<{
   fields?: SignerField[]
 }>()
 
-const emit = defineEmits<{ mark: [mark: FieldMark] }>()
+const emit = defineEmits<{ mark: [mark: FieldMark]; loadFailed: [url: string] }>()
 
 const PAGE_WIDTH = 520
 const MIN_ZOOM = 50
@@ -171,6 +171,11 @@ function onLayerAspect(id: number, ratio: number) {
 function onPdfAspect(id: number, ratio: number) {
   onLayerAspect(id, ratio)
   markReady(id)
+}
+
+function onPdfFailed(layer: Layer, message: string) {
+  renderError.value = message
+  if (layer.id === newestId.value && layer.url) emit('loadFailed', layer.url)
 }
 
 function onPages(count: number) {
@@ -364,7 +369,7 @@ function onPointerUp(event: PointerEvent) {
               @pages="onLayerPages(layer.id, $event)"
               @mark="emit('mark', $event)"
               @aspect="onPdfAspect(layer.id, $event)"
-              @failed="renderError = $event"
+              @failed="onPdfFailed(layer, $event)"
             />
           </div>
         </TransitionGroup>

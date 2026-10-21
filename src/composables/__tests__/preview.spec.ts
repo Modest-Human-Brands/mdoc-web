@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
 import { effectScope, nextTick, ref } from 'vue'
 
+import { resetBlobRegistry } from '../blobRegistry'
+import { lastShown, showStage } from '../previewStage'
 import { usePreview } from '../usePreview'
 
 const ONE_PAGE = '%PDF-1.4 mock'
@@ -159,5 +161,89 @@ describe('usePreview', () => {
     await vi.advanceTimersByTimeAsync(0)
     expect(fetchMock).toHaveBeenCalledTimes(1)
     scope.stop()
+  })
+
+  describe('blob lifetime', () => {
+    let revoked: string[]
+
+    beforeEach(() => {
+      resetBlobRegistry()
+      lastShown.value = null
+      revoked = []
+      let n = 0
+      vi.stubGlobal(
+        'URL',
+        Object.assign(URL, {
+          createObjectURL: () => `blob:doc/${++n}`,
+          revokeObjectURL: (url: string) => revoked.push(url),
+        }),
+      )
+    })
+
+    it('never revokes a cached URL that is revisited after another step took the stage', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn<typeof fetch>(() => Promise.resolve(previewResponse(ONE_PAGE))),
+      )
+      const variables = ref<Record<string, unknown>>({ a: '1' })
+      const scope = effectScope()
+      const preview = scope.run(() => usePreview(ref('invoice'), variables))!
+      await vi.advanceTimersByTimeAsync(900)
+      const first = preview.url.value!
+      showStage({ url: first, pages: null })
+
+      variables.value = { a: '2' }
+      await vi.advanceTimersByTimeAsync(900)
+      const second = preview.url.value!
+      showStage({ url: second, pages: null })
+      await vi.advanceTimersByTimeAsync(5000)
+
+      variables.value = { a: '1' }
+      await vi.advanceTimersByTimeAsync(900)
+
+      expect(preview.url.value).toBe(first)
+      expect(revoked).not.toContain(first)
+      scope.stop()
+    })
+
+    it('revokes every cached URL once the preview and the stage let go', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn<typeof fetch>(() => Promise.resolve(previewResponse(ONE_PAGE))),
+      )
+      const scope = effectScope()
+      const preview = scope.run(() => usePreview(ref('invoice'), ref({ a: '1' })))!
+      await vi.advanceTimersByTimeAsync(900)
+      const shown = preview.url.value!
+      showStage({ url: shown, pages: null })
+
+      scope.stop()
+      await vi.advanceTimersByTimeAsync(2000)
+      expect(revoked).not.toContain(shown)
+
+      showStage({ url: null, pages: [] })
+      await vi.advanceTimersByTimeAsync(2000)
+      expect(revoked).toContain(shown)
+    })
+
+    it('re-renders once when the viewer reports the current blob failed to load', async () => {
+      const fetchMock = vi.fn<typeof fetch>(() => Promise.resolve(previewResponse(ONE_PAGE)))
+      vi.stubGlobal('fetch', fetchMock)
+      const scope = effectScope()
+      const preview = scope.run(() => usePreview(ref('invoice'), ref({ a: '1' })))!
+      await vi.advanceTimersByTimeAsync(900)
+      const dead = preview.url.value!
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+
+      preview.recover(dead)
+      await vi.advanceTimersByTimeAsync(0)
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+      expect(preview.url.value).not.toBe(dead)
+
+      preview.recover(preview.url.value)
+      await vi.advanceTimersByTimeAsync(0)
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+      scope.stop()
+    })
   })
 })

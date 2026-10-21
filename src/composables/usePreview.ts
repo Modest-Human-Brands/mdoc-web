@@ -3,7 +3,7 @@ import { computed, onScopeDispose, ref, toValue, watch, type MaybeRefOrGetter } 
 
 import { templatesApi, type PreviewVariant, type PreviewWarning } from '@/api'
 
-import { isHeld } from './previewStage'
+import { createBlobUrl, releaseBlob } from './blobRegistry'
 import { errorMessage } from './useTemplates'
 
 const DEBOUNCE_MS = 800
@@ -49,13 +49,10 @@ export function usePreview(
   function remember(key: string, rendered: Rendered) {
     cache.set(key, rendered)
     if (cache.size > MAX_CACHE) {
-      const oldest = cache.keys().next().value
-      if (oldest !== undefined) {
-        const evicted = cache.get(oldest)
-        if (evicted && evicted.url !== url.value && !isHeld(evicted.url)) {
-          URL.revokeObjectURL(evicted.url)
-        }
-        cache.delete(oldest)
+      const oldest = [...cache.entries()].find(([, entry]) => entry.url !== url.value)
+      if (oldest) {
+        releaseBlob(oldest[1].url)
+        cache.delete(oldest[0])
       }
     }
   }
@@ -78,7 +75,7 @@ export function usePreview(
         { draft: true, signal: controller.signal },
       )
       const rendered: Rendered = {
-        url: URL.createObjectURL(base64ToBlob(response.pdfBase64)),
+        url: createBlobUrl(base64ToBlob(response.pdfBase64)),
         pageCount: Math.max(1, response.pageCount ?? 1),
         warnings: response.warnings ?? [],
       }
@@ -139,11 +136,25 @@ export function usePreview(
     disposed = true
     pending.stop()
     controller?.abort()
-    for (const { url: cached } of cache.values()) {
-      if (!isHeld(cached)) URL.revokeObjectURL(cached)
-    }
+    for (const { url: cached } of cache.values()) releaseBlob(cached)
     cache.clear()
   })
 
-  return { url, pageCount, warnings, loading, error }
+  let recoveredKey = ''
+
+  function recover(failedUrl: string | null) {
+    if (disposed || !failedUrl || failedUrl !== url.value) return
+    const key = requestKey.value
+    if (recoveredKey === key) return
+    recoveredKey = key
+    for (const [cacheKey, entry] of cache) {
+      if (entry.url !== failedUrl) continue
+      releaseBlob(entry.url)
+      cache.delete(cacheKey)
+    }
+    pending.stop()
+    run()
+  }
+
+  return { url, pageCount, warnings, loading, error, recover }
 }
