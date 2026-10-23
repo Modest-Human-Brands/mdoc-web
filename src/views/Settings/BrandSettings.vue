@@ -130,7 +130,7 @@ function cancel() {
       </div>
 
       <div class="grid grid-cols-2 gap-3">
-        <UiTextField v-model="org.pan" label="PAN" hint="optional" placeholder="ABCDE0123F" />
+        <UiTextField v-model="org.pan" label="PAN" hint="optional" placeholder="AAAAA0000A" />
         <UiTextField
           v-model="org.gstin"
           label="GSTIN"

@@ -3,14 +3,21 @@ import { describe, expect, it } from 'vite-plus/test'
 import { emptyOrganization } from '../organization'
 import { organizationFormSchema } from '../organizationForm'
 
-function issues(changes: Record<string, unknown>) {
-  const result = organizationFormSchema.safeParse({ ...emptyOrganization(), ...changes })
+const required = { name: 'Acme', contactEmail: 'hi@acme.co' }
+
+function issues(changes: Record<string, unknown>, base: Record<string, unknown> = required) {
+  const result = organizationFormSchema.safeParse({
+    ...emptyOrganization(),
+    ...base,
+    ...changes,
+  })
   return result.success ? [] : result.error.issues.map((i) => [i.path.join('.'), i.message])
 }
 
 describe('organizationFormSchema', () => {
-  it('accepts the untouched profile', () => {
+  it('accepts a profile with a name and contact email, and requires both', () => {
     expect(issues({})).toEqual([])
+    expect(issues({}, {}).map(([path]) => path)).toEqual(['name', 'contactEmail'])
   })
 
   it('requires https links for the website and every social', () => {

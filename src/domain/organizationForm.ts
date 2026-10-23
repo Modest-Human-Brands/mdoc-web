@@ -17,6 +17,8 @@ const optionalEmail = z
   .string()
   .refine((value) => value.trim() === '' || isEmail(value), 'Enter a valid email address')
 
+const requiredEmail = z.string().refine((value) => isEmail(value), 'Enter a valid email address')
+
 const optionalUrl = z
   .string()
   .refine((value) => value.trim() === '' || isHttpsUrl(value), 'Use an https:// link')
@@ -28,7 +30,7 @@ const optionalYear = z.string().superRefine((value, ctx) => {
 
 export const organizationFormSchema = z.object({
   id: z.string().refine((value) => value.trim() !== '', 'Organisation is required'),
-  name: z.string(),
+  name: z.string().refine((value) => value.trim() !== '', 'Business name is required'),
   legalName: z.string(),
   entityType: z.enum(ENTITY_TYPES),
   tradeRelationship: z.enum(TRADE_RELATIONSHIPS),
@@ -46,7 +48,7 @@ export const organizationFormSchema = z.object({
     bankName: z.string(),
     ifscCode: z.string(),
   }),
-  contactEmail: optionalEmail,
+  contactEmail: requiredEmail,
   billingEmail: optionalEmail,
   phone: z.string(),
   whatsapp: z.string(),
