@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.0.7
+
+[compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.6...v0.0.7)
+
+### 🩹 Fixes
+
+- **preview:** Stop revoking blob URLs that are still cached ([748b8bc](https://github.com/Modest-Human-Brands/mdoc-web/commit/748b8bc))
+- **organizationForm): update required email validation and improve error messages fix(tests): enhance organizationFormSchema tests for better coverage fix(BrandSettings:** Update PAN placeholder format to match expected pattern ([8b8cd08](https://github.com/Modest-Human-Brands/mdoc-web/commit/8b8cd08))
+
+### ❤️ Contributors
+
+- Shirsendu Bairagi ([@shba007](https://github.com/shba007))
+
 ## v0.0.6
 
 [compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.5...v0.0.6)
