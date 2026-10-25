@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.0.8
+
+[compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.7...v0.0.8)
+
+### 🚀 Enhancements
+
+- **api:** Follow the updated Postman collection ([0365081](https://github.com/Modest-Human-Brands/mdoc-web/commit/0365081))
+
+### ❤️ Contributors
+
+- Shirsendu Bairagi ([@shba007](https://github.com/shba007))
+
 ## v0.0.7
 
 [compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.6...v0.0.7)

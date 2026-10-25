@@ -1,6 +1,6 @@
 {
   "name": "mdoc-web",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "private": true,
   "description": "Web UI of MDoc",
   "license": "MIT",
