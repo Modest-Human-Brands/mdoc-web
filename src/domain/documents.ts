@@ -1,6 +1,6 @@
 import type { DocumentDetail, DocumentListItem, SignerQueueEntry } from '@/api'
 
-export const STATUS_FILTERS = ['All', 'Draft', 'Ready', 'Delivered', 'Voided'] as const
+export const STATUS_FILTERS = ['All', 'Draft', 'Ready', 'Delivered', 'Void'] as const
 export type StatusFilter = (typeof STATUS_FILTERS)[number]
 
 export const EDITABLE_STATUSES = ['Plan', 'Draft', 'Ready', 'Delivered'] as const
@@ -25,8 +25,23 @@ export function matchesSearch(item: DocumentListItem, query: string, label: stri
   return `${item.name} ${label}`.toLowerCase().includes(needle)
 }
 
+const STATUS_CHANGEABLE = ['Plan', 'Draft', 'Ready']
+const NOT_VOIDABLE = ['Completed', 'Void']
+
 export function isDraft(status: string): boolean {
   return status === 'Draft'
+}
+
+export function canChangeStatus(status: string): boolean {
+  return STATUS_CHANGEABLE.includes(status)
+}
+
+export function isVoid(status: string): boolean {
+  return status === 'Void'
+}
+
+export function canVoid(status: string): boolean {
+  return !NOT_VOIDABLE.includes(status)
 }
 
 export function canSend(status: string): boolean {

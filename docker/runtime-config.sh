@@ -15,6 +15,7 @@ window.__MDOC_CONFIG__ = {
   userId: "$(js_string "${VITE_MDOC_USER_ID:-}")",
   contactId: "$(js_string "${VITE_MDOC_CONTACT_ID:-}")",
   projectId: "$(js_string "${VITE_MDOC_PROJECT_ID:-}")",
+  apiKey: "$(js_string "${VITE_MDOC_API_KEY:-}")",
 }
 EOF
 

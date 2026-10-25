@@ -9,6 +9,7 @@ interface ImportMetaEnv {
   readonly VITE_MDOC_USER_ID?: string
   readonly VITE_MDOC_CONTACT_ID?: string
   readonly VITE_MDOC_PROJECT_ID?: string
+  readonly VITE_MDOC_API_KEY?: string
 }
 
 interface ImportMeta {

@@ -1,4 +1,5 @@
 import { apiUrl, request, requestBlob } from './http'
+import { orgHeaders } from './organization'
 import type {
   DocumentDetail,
   NumberingResponse,
@@ -18,11 +19,15 @@ export interface NumberingQuery {
 }
 
 export const documentsApi = {
-  nextNumber: (query: NumberingQuery, signal?: AbortSignal) =>
-    request<NumberingResponse>('/document/numbering/next', {
-      query: { ...query },
+  nextNumber: (query: NumberingQuery, signal?: AbortSignal) => {
+    const { organizationId, ...rest } = query
+    const preset = orgHeaders(organizationId)
+    return request<NumberingResponse>('/document/numbering/next', {
+      query: { ...rest, ...(organizationId && !preset ? { organizationId } : {}) },
+      headers: preset,
       signal,
-    }),
+    })
+  },
 
   list: (params: DocumentListParams = {}, signal?: AbortSignal) =>
     request<DocumentList>('/document', { query: { ...params }, signal }),

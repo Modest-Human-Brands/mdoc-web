@@ -145,7 +145,7 @@ describe('wizard store', () => {
     expect(wizard.fieldErrors['recipient.phone']).toBe('Too short for this server')
   })
 
-  it('creates the document with typed ids, organizationId and a numeric payload', async () => {
+  it('creates the document with typed ids, the x-org-id header and a numeric payload', async () => {
     const fetchMock = vi.fn<typeof fetch>(() =>
       Promise.resolve(
         jsonResponse({ id: 'doc-1', templateId: 'invoice', name: 'MHB-I-26-001', sizeBytes: 10 }),
@@ -163,8 +163,9 @@ describe('wizard store', () => {
       template: 'invoice',
       userId: 'user-1',
       contactId: 'contact-1',
-      organizationId: 'modest-human-brands',
     })
+    expect(body).not.toHaveProperty('organizationId')
+    expect(init?.headers).toMatchObject({ 'x-org-id': 'modest-human-brands' })
     expect(body.data).not.toHaveProperty('organization')
     expect(body.data).toMatchObject({
       pricingModel: 'project',
@@ -290,7 +291,9 @@ describe('wizard store', () => {
         fetchMock.mock.calls.find(([u]) => urlOf(u).includes('numbering'))?.[0] as string,
       )
       expect(numberingUrl).toContain('templateId=invoice')
-      expect(numberingUrl).toContain('organizationId=modest-human-brands')
+      expect(numberingUrl).not.toContain('organizationId=')
+      const numberingInit = fetchMock.mock.calls.find(([u]) => urlOf(u).includes('numbering'))?.[1]
+      expect(numberingInit?.headers).toMatchObject({ 'x-org-id': 'modest-human-brands' })
       expect(numberingUrl).toContain('organizationName=Modest+Human+Brands')
     })
 

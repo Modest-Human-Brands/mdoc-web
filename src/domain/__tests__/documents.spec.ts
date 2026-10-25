@@ -4,7 +4,10 @@ import type { DocumentDetail, DocumentListItem } from '@/api'
 
 import {
   activityOf,
+  canChangeStatus,
   canSend,
+  canVoid,
+  isVoid,
   formatDay,
   matchesSearch,
   pageRange,
@@ -47,7 +50,7 @@ describe('documents helpers', () => {
     expect(canSend('Draft')).toBe(true)
     expect(canSend('Ready')).toBe(true)
     expect(canSend('Sent')).toBe(false)
-    expect(canSend('Voided')).toBe(false)
+    expect(canSend('Void')).toBe(false)
   })
 
   it('reads the signing queue defensively and in order', () => {
@@ -56,6 +59,19 @@ describe('documents helpers', () => {
     expect(signers.map((signer) => signer.name)).toEqual(['Rhea', 'Arjun'])
     expect(signedCount(signers)).toBe(1)
     expect(signersOf({ routingQueue: null })).toEqual([])
+  })
+
+  it('knows which statuses can be voided or have their status changed', () => {
+    expect(canVoid('Sent')).toBe(true)
+    expect(canVoid('Draft')).toBe(true)
+    expect(canVoid('Completed')).toBe(false)
+    expect(canVoid('Void')).toBe(false)
+    expect(isVoid('Void')).toBe(true)
+    expect(isVoid('Voided')).toBe(false)
+    expect(canChangeStatus('Plan')).toBe(true)
+    expect(canChangeStatus('Ready')).toBe(true)
+    expect(canChangeStatus('Delivered')).toBe(false)
+    expect(canChangeStatus('Sent')).toBe(false)
   })
 
   it('describes each signer by their turn', () => {

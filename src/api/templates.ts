@@ -1,4 +1,5 @@
 import { request } from './http'
+import { orgHeaders } from './organization'
 import type {
   CreateDocumentRequest,
   CreateDocumentResponse,
@@ -22,6 +23,15 @@ export const templatesApi = {
       signal: options.signal,
     }),
 
-  createDocument: (body: CreateDocumentRequest, signal?: AbortSignal) =>
-    request<CreateDocumentResponse>('/document/template', { method: 'POST', body, signal }),
+  createDocument: (body: CreateDocumentRequest, signal?: AbortSignal) => {
+    const { organizationId, ...rest } = body
+    const preset = orgHeaders(organizationId)
+    const payload = organizationId && !preset ? body : rest
+    return request<CreateDocumentResponse>('/document/template', {
+      method: 'POST',
+      body: payload,
+      headers: preset,
+      signal,
+    })
+  },
 }

@@ -34,6 +34,7 @@ export interface RequestOptions {
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE'
   query?: Query
   body?: unknown
+  headers?: Record<string, string>
   signal?: AbortSignal
 }
 
@@ -67,16 +68,21 @@ async function toApiError(response: Response): Promise<ApiError> {
       if (detail) message = detail
     }
   } catch {}
+  if (response.status === 401) {
+    message = 'The server rejected this app’s API key. Check the frontend configuration.'
+  }
   return new ApiError(response.status, message, fields)
 }
 
 async function send(path: string, options: RequestOptions): Promise<Response> {
   const { method = 'GET', query, body, signal } = options
   const isForm = body instanceof FormData
-  const init: RequestInit = { method, signal }
+  const headers: Record<string, string> = { ...options.headers }
+  if (config.apiKey) headers['x-api-key'] = config.apiKey
+  const init: RequestInit = { method, signal, headers }
   if (body !== undefined) {
     init.body = isForm ? body : JSON.stringify(body)
-    if (!isForm) init.headers = { 'Content-Type': 'application/json' }
+    if (!isForm) headers['Content-Type'] = 'application/json'
   }
 
   let response: Response

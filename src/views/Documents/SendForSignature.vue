@@ -4,7 +4,7 @@ import { NotArrayField, NotField, NotForm, useNotForm } from 'notform'
 import { computed, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
-import { documentsApi, fetchTemplateDetail, signingApi, type DocumentDetail } from '@/api'
+import { ApiError, documentsApi, fetchTemplateDetail, signingApi, type DocumentDetail } from '@/api'
 import UiAddButton from '@/components/ui/UiAddButton.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiTextField from '@/components/ui/UiTextField.vue'
@@ -33,6 +33,7 @@ const pdf = shallowRef<Blob | null>(null)
 const pdfUrl = useObjectUrl(pdf)
 const loadError = ref<string | null>(null)
 const sendError = ref<string | null>(null)
+const sendIssues = ref<string[]>([])
 const sending = ref(false)
 const link = ref<string | null>(null)
 const slots = ref<SignerSlot[] | null>(null)
@@ -104,6 +105,7 @@ watch(id, load, { immediate: true })
 
 async function send() {
   sendError.value = null
+  sendIssues.value = []
   const checked = await form.validate()
   if (checked.issues) return
   sending.value = true
@@ -118,6 +120,7 @@ async function send() {
     link.value = signingLink(window.location.origin, id.value, session.sessionToken)
   } catch (e) {
     sendError.value = errorMessage(e)
+    sendIssues.value = e instanceof ApiError ? e.fields.map((field) => field.message) : []
   } finally {
     sending.value = false
   }
@@ -270,9 +273,13 @@ async function send() {
           </label>
         </NotForm>
 
-        <p v-if="sendError" class="rounded-md bg-alert-600 px-3 py-2 text-sm" role="alert">
-          Couldn't send: {{ sendError }}
-        </p>
+        <div v-if="sendError" class="rounded-md bg-alert-600 px-3 py-2 text-sm" role="alert">
+          <p>Couldn't send.</p>
+          <ul v-if="sendIssues.length > 0" class="mt-1 list-disc pl-4">
+            <li v-for="issue in sendIssues" :key="issue">{{ issue }}</li>
+          </ul>
+          <p v-else>{{ sendError }}</p>
+        </div>
 
         <div class="mt-auto flex items-center justify-end gap-2">
           <UiButton variant="ghost" @click="router.push(`/documents/${id}`)">Back</UiButton>

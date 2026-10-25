@@ -10,7 +10,9 @@ import UiFilterChip from '@/components/ui/UiFilterChip.vue'
 import { useDocumentList } from '@/composables/useDocuments'
 import { errorMessage, useTemplates } from '@/composables/useTemplates'
 import {
+  canVoid,
   formatDay,
+  isVoid,
   matchesSearch,
   pageRange,
   PAGE_SIZE,
@@ -67,7 +69,7 @@ async function print(item: DocumentListItem) {
 }
 
 const statusTone = (value: string) =>
-  value === 'Voided' ? 'text-alert-400' : value === 'Delivered' ? 'text-success-400' : 'text-white'
+  isVoid(value) ? 'text-alert-400' : value === 'Delivered' ? 'text-success-400' : 'text-white'
 </script>
 
 <template>
@@ -217,7 +219,7 @@ const statusTone = (value: string) =>
             <button
               type="button"
               class="rounded-md px-2 py-2 text-left hover:bg-dark-500 disabled:opacity-40"
-              :disabled="selected.status === 'Voided'"
+              :disabled="!canVoid(selected.status)"
               @click="voidTarget = selected"
             >
               Void

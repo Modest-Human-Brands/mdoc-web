@@ -134,7 +134,39 @@ describe('api client', () => {
 
     expect(result.number).toBe('MHB-I-26-001')
     expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      '/api/document/numbering/next?templateId=invoice&organizationId=modest-human-brands&organizationName=Modest+Human+Brands',
+      '/api/document/numbering/next?templateId=invoice&organizationName=Modest+Human+Brands',
     )
+    expect(fetchMock.mock.calls[0]?.[1]?.headers).toEqual({ 'x-org-id': 'modest-human-brands' })
+  })
+
+  it('keeps a Notion organisation id in the body instead of the x-org-id header', async () => {
+    const id = '307ee3b0-289a-8116-afb0-f6a1795a27a0'
+    const fetchMock = mockFetch(200, { id: '1', templateId: 't', name: 'n', sizeBytes: 3 })
+
+    await templatesApi.createDocument({
+      name: 'n',
+      template: 't',
+      userId: 'u',
+      contactId: 'c',
+      organizationId: id,
+      data: {},
+    })
+
+    const init = fetchMock.mock.calls[0]?.[1]
+    expect(init?.headers).toEqual({ 'Content-Type': 'application/json' })
+    expect(JSON.parse(init?.body as string)).toMatchObject({ organizationId: id })
+  })
+
+  it('explains a 401 as a rejected API key', async () => {
+    mockFetch(401, {
+      error: true,
+      status: 401,
+      data: { errors: [{ field: 'x-api-key', message: 'A valid x-api-key header is required.' }] },
+    })
+
+    await expect(documentsApi.get('d1')).rejects.toMatchObject({
+      status: 401,
+      message: expect.stringContaining('API key'),
+    })
   })
 })

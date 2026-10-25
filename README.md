@@ -4,13 +4,13 @@ Vue 3 + TypeScript + Tailwind CSS v4 web app for creating documents from templat
 
 ## Screens
 
-| Route                                          | Screen                                                                                                                                                                    |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/new/template`, `/new/details`, `/new/review` | The document wizard. The Details step has a client picker (clients are stored in this browser and filled into `recipient`).                                               |
-| `/settings/brand`                              | Branding settings, opened with "Change branding" from the wizard.                                                                                                         |
-| `/documents`, `/documents/:id`                 | Documents list (status filter, paging) and detail (status, signers, activity, download, void, verify).                                                                    |
-| `/documents/:id/send`                          | Send for signature: signers in order, link expiry, first signing link. Uses `POST /document/:id/envelope`, which is in the backend but not yet in the Postman collection. |
-| `/s/:id/:token`                                | Public client signing page (all signatures use server signing).                                                                                                           |
+| Route                                          | Screen                                                                                                                                                                                                                                          |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/new/template`, `/new/details`, `/new/review` | The document wizard. The Details step has a client picker (clients are stored in this browser and filled into `recipient`).                                                                                                                     |
+| `/settings/brand`                              | Branding settings, opened with "Change branding" from the wizard.                                                                                                                                                                               |
+| `/documents`, `/documents/:id`                 | Documents list (status filter, paging) and detail (status, signers, activity, download, void, verify).                                                                                                                                          |
+| `/documents/:id/send`                          | Send for signature: signers in order, link expiry, first signing link. Uses `POST /document/:id/envelope` ("Send document for signing"). The signer rows are fixed by the template's signature fields, because the API rejects any other count. |
+| `/s/:id/:token`                                | Public client signing page (all signatures use server signing).                                                                                                                                                                                 |
 
 ## Getting started
 
@@ -34,12 +34,13 @@ Run the MDoc API (Nitro/H3) on port 3002 first, or set `VITE_API_PROXY_TARGET`.
 
 ## Configuration
 
-| Variable                                                            | Purpose                                                                                                                         |
-| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `VITE_PUBLIC_SITE_URL`                                              | Public URL of this app. Docker build arg `SITE_URL`.                                                                            |
-| `VITE_MDOC_API_URL`                                                 | MDoc API origin. In development it is the target of the `/api` proxy; in production it is the API origin (build arg `API_URL`). |
-| `VITE_DEFAULT_ORGANIZATION_ID`                                      | Organisation preset id (optional).                                                                                              |
-| `VITE_MDOC_USER_ID`, `VITE_MDOC_CONTACT_ID`, `VITE_MDOC_PROJECT_ID` | Notion ids. Only read in development; in Docker pass them when the container starts.                                            |
+| Variable                                                            | Purpose                                                                                                                                                            |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `VITE_PUBLIC_SITE_URL`                                              | Public URL of this app. Docker build arg `SITE_URL`.                                                                                                               |
+| `VITE_MDOC_API_URL`                                                 | MDoc API origin. In development it is the target of the `/api` proxy; in production it is the API origin (build arg `API_URL`).                                    |
+| `VITE_DEFAULT_ORGANIZATION_ID`                                      | Organisation preset id (optional).                                                                                                                                 |
+| `VITE_MDOC_USER_ID`, `VITE_MDOC_CONTACT_ID`, `VITE_MDOC_PROJECT_ID` | Notion ids. Only read in development; in Docker pass them when the container starts.                                                                               |
+| `VITE_MDOC_API_KEY`                                                 | Sent as the `x-api-key` header on every API request. Only read in development; in Docker pass it when the container starts. Leave empty if the API has no key set. |
 
 Copy `.env.example` to `.env` (git-ignored) and fill it in.
 
@@ -76,7 +77,7 @@ bun run docker:build   # builds mdoc-web:dev
 bun run docker:start   # runs it with --env-file .env on http://localhost:2000
 ```
 
-Per-environment settings are **runtime** variables, not build arguments: when the container starts, `docker/runtime-config.sh` writes `/config.js` from `VITE_MDOC_USER_ID`, `VITE_MDOC_CONTACT_ID`, `VITE_MDOC_PROJECT_ID`, `VITE_DEFAULT_ORGANIZATION_ID` and `VITE_MDOC_API_URL`. Put them in `.env` (git-ignored; see `.env.example`) or pass `-e`. The image itself never contains them.
+Per-environment settings are **runtime** variables, not build arguments: when the container starts, `docker/runtime-config.sh` writes `/config.js` from `VITE_MDOC_USER_ID`, `VITE_MDOC_CONTACT_ID`, `VITE_MDOC_PROJECT_ID`, `VITE_DEFAULT_ORGANIZATION_ID`, `VITE_MDOC_API_URL` and `VITE_MDOC_API_KEY`. Put them in `.env` (git-ignored; see `.env.example`) or pass `-e`. The image itself never contains them.
 
 ## License
 
@@ -85,3 +86,5 @@ Published under the [MIT License](https://github.com/Modest-Human-Brands/mdoc-we
 <a href="https://github.com/Modest-Human-Brands/mdoc-web/graphs/contributors">
 <img src="https://contrib.rocks/image?repo=Modest-Human-Brands/mdoc-web" />
 </a>
+
+> **The API key is visible to anyone who opens the app.** `/config.js` is served to the browser, so `x-api-key` here only keeps out casual traffic. For real access control put the API behind the app's own server or a proxy that adds the key.

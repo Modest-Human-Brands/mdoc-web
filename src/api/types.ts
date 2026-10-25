@@ -121,7 +121,7 @@ export type DocumentStatus =
   | 'Delivered'
   | 'Sent'
   | 'Completed'
-  | 'Voided'
+  | 'Void'
   | (string & {})
 
 export interface ProjectRef {
@@ -190,7 +190,7 @@ export interface UpdateDocumentResponse {
 }
 
 export interface VoidDocumentResponse {
-  documentStatus: 'Voided'
+  documentStatus: 'Void'
   fileName: string
 }
 

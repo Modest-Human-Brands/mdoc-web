@@ -10,10 +10,11 @@ import PreviewPanel from '@/components/wizard/PreviewPanel.vue'
 import { errorMessage } from '@/composables/useTemplates'
 import {
   activityOf,
+  canChangeStatus,
   canSend,
+  canVoid as isVoidable,
   EDITABLE_STATUSES,
   formatDay,
-  isDraft,
   signedCount,
   signerCaption,
   signersOf,
@@ -46,7 +47,7 @@ const progress = computed(() =>
 )
 const nextIndex = computed(() => signers.value.findIndex((signer) => signer.status === 'PENDING'))
 const activity = computed(() => (detail.value ? activityOf(detail.value, signers.value) : []))
-const canVoid = computed(() => detail.value !== null && detail.value.status !== 'Voided')
+const canVoid = computed(() => detail.value !== null && isVoidable(detail.value.status))
 
 async function load() {
   loading.value = true
@@ -152,7 +153,7 @@ async function changeStatus(event: Event) {
         <div class="flex items-start justify-between gap-3">
           <h1 class="text-lg font-bold">{{ detail.name }}</h1>
           <select
-            v-if="isDraft(detail.status)"
+            v-if="canChangeStatus(detail.status)"
             :value="detail.status"
             :disabled="savingStatus"
             aria-label="Status"

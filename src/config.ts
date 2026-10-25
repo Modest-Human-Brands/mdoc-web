@@ -5,6 +5,7 @@ export interface RuntimeConfig {
   userId?: string
   contactId?: string
   projectId?: string
+  apiKey?: string
 }
 
 declare global {
@@ -31,6 +32,7 @@ function buildConfig(): BuildConfig {
     userId: import.meta.env.DEV ? import.meta.env.VITE_MDOC_USER_ID : undefined,
     contactId: import.meta.env.DEV ? import.meta.env.VITE_MDOC_CONTACT_ID : undefined,
     projectId: import.meta.env.DEV ? import.meta.env.VITE_MDOC_PROJECT_ID : undefined,
+    apiKey: import.meta.env.DEV ? import.meta.env.VITE_MDOC_API_KEY : undefined,
   }
 }
 
@@ -47,6 +49,7 @@ export function readConfig(
     userId: pickConfig(runtime?.userId, build.userId),
     contactId: pickConfig(runtime?.contactId, build.contactId),
     projectId: pickConfig(runtime?.projectId, build.projectId),
+    apiKey: pickConfig(runtime?.apiKey, build.apiKey),
   }
 }
 
