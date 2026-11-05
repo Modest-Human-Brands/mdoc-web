@@ -115,8 +115,16 @@ export function autoPaths(schema: JsonSchema, prefix: string[] = []): string[][]
   return schema['x-auto'] && schema.type !== 'array' ? [prefix] : []
 }
 
-export function ownNumberPath(schema: JsonSchema): string[] | null {
+const OWN_NUMBER_KEY: Record<string, string> = {
+  invoice: 'invoiceNumber',
+  quotation: 'quoteNumber',
+  receipt: 'receiptNumber',
+}
+
+export function ownNumberPath(schema: JsonSchema, templateId?: string | null): string[] | null {
   const paths = autoPaths(schema)
+  const own = templateId ? OWN_NUMBER_KEY[templateId] : undefined
+  if (own) return paths.find((p) => p[p.length - 1] === own) ?? null
   return paths.find((p) => p[p.length - 1] === 'invoiceNumber') ?? paths[0] ?? null
 }
 

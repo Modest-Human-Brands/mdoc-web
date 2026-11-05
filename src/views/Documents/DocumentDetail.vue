@@ -30,6 +30,7 @@ const id = computed(() => String(route.params.id))
 const detail = ref<DocumentDetail | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
+const pdfError = ref<string | null>(null)
 const pdf = shallowRef<Blob | null>(null)
 const pdfUrl = useObjectUrl(pdf)
 const actionError = ref<string | null>(null)
@@ -52,10 +53,14 @@ const canVoid = computed(() => detail.value !== null && isVoidable(detail.value.
 async function load() {
   loading.value = true
   error.value = null
+  pdfError.value = null
   try {
     const [loaded, blob] = await Promise.all([
       documentsApi.get(id.value),
-      documentsApi.content(id.value),
+      documentsApi.content(id.value).catch((e: unknown) => {
+        pdfError.value = errorMessage(e)
+        return null
+      }),
     ])
     detail.value = loaded
     pdf.value = blob
@@ -127,7 +132,7 @@ async function changeStatus(event: Event) {
       :label="detail?.name ?? 'Document'"
       :url="pdfUrl ?? null"
       :loading="loading"
-      :error="error"
+      :error="error ?? pdfError"
       :fetch-download="() => documentsApi.content(id)"
       :download-name="detail?.name"
       :reset-key="id"

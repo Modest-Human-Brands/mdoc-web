@@ -82,6 +82,12 @@ export function templateDefaults(templateId: string): Values {
     defaults = setPath(defaults, ['project', 'deliverables'], [{ quantity: '1' }])
     return defaults as Values
   }
+  if (templateId === 'receipt') {
+    let defaults: unknown = {}
+    defaults = setPath(defaults, ['receipt', 'paidDate'], date)
+    defaults = setPath(defaults, ['receipt', 'items'], [{ quantity: '1' }])
+    return defaults as Values
+  }
   return {}
 }
 

@@ -194,7 +194,9 @@ export const useWizardStore = defineStore('wizard', () => {
   const numberError = ref<string | null>(null)
   let numberTicket = 0
 
-  const numberPath = computed(() => (schema.value ? ownNumberPath(schema.value) : null))
+  const numberPath = computed(() =>
+    schema.value ? ownNumberPath(schema.value, templateId.value) : null,
+  )
 
   function isAutoLocked(path: string): boolean {
     return lockedNumberPath.value !== null && lockedNumberPath.value === path

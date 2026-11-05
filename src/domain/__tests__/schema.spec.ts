@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vite-plus/test'
 
-import type { TemplateDetail } from '@/api'
+import type { JsonSchema, TemplateDetail } from '@/api'
 import invoiceFixture from '@/test/fixtures/invoice.json'
 import internshipFixture from '@/test/fixtures/internship-completion-certificate.json'
 
@@ -13,6 +13,7 @@ import {
   toPayload,
   withDefaults,
   type Values,
+  ownNumberPath,
 } from '../schema'
 
 const invoice = (invoiceFixture as unknown as TemplateDetail).schema
@@ -109,5 +110,31 @@ describe('payload from typed values', () => {
     const form = setPath(emptyValue(schema), ['recipient', 'email'], 'acc')
 
     expect((toPayload(schema, form) as Values).recipient).toMatchObject({ email: 'acc' })
+  })
+})
+describe('ownNumberPath', () => {
+  const field = (auto = false) =>
+    ({ type: 'string', ...(auto ? { 'x-auto': true } : {}) }) as JsonSchema
+  const receipt = {
+    type: 'object',
+    properties: {
+      receipt: {
+        type: 'object',
+        properties: { receiptNumber: field(), invoiceNumber: field(true) },
+      },
+    },
+  } as JsonSchema
+
+  it("does not treat a receipt's reference to an invoice as its own number", () => {
+    expect(ownNumberPath(receipt, 'receipt')).toBeNull()
+    const marked = structuredClone(receipt)
+    ;(marked.properties!.receipt!.properties!.receiptNumber as Record<string, unknown>)['x-auto'] =
+      true
+    expect(ownNumberPath(marked, 'receipt')).toEqual(['receipt', 'receiptNumber'])
+  })
+
+  it('keeps the previous choice for templates without a known number key', () => {
+    expect(ownNumberPath(receipt)).toEqual(['receipt', 'invoiceNumber'])
+    expect(ownNumberPath(receipt, 'retainer-contract')).toEqual(['receipt', 'invoiceNumber'])
   })
 })

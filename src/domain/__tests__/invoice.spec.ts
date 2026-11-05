@@ -107,6 +107,15 @@ describe('invoice helpers', () => {
     expect(templateDefaults('quotation')).toEqual({})
   })
 
+  it('defaults a receipt to paid today with one item', () => {
+    expect(templateDefaults('receipt')).toMatchObject({
+      receipt: {
+        paidDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) as string,
+        items: [{ quantity: '1' }],
+      },
+    })
+  })
+
   it('shows billing only when project and financials exist', () => {
     expect(hasBilling(form())).toBe(true)
     expect(hasBilling({ recipient: {} })).toBe(false)
