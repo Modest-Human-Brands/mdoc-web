@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.0.9
+
+[compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.8...v0.0.9)
+
+### 🩹 Fixes
+
+- **documents:** Receipt numbering and resilient document detail ([d5f392e](https://github.com/Modest-Human-Brands/mdoc-web/commit/d5f392e))
+
+### ❤️ Contributors
+
+- Shirsendu Bairagi ([@shba007](https://github.com/shba007))
+
 ## v0.0.8
 
 [compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.7...v0.0.8)
