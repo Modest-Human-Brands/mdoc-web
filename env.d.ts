@@ -3,13 +3,13 @@
 /// <reference types="unplugin-fonts/client" />
 
 interface ImportMetaEnv {
-  readonly VITE_PUBLIC_SITE_URL?: string
-  readonly VITE_MDOC_API_URL?: string
-  readonly VITE_DEFAULT_ORGANIZATION_ID?: string
-  readonly VITE_MDOC_USER_ID?: string
-  readonly VITE_MDOC_CONTACT_ID?: string
-  readonly VITE_MDOC_PROJECT_ID?: string
-  readonly VITE_MDOC_API_KEY?: string
+  readonly VITE_MDOC_WEB_SITE_URL?: string
+  readonly VITE_MDOC_WEB_API_URL?: string
+  readonly ORGANIZATION_ID?: string
+  readonly VITE_MDOC_WEB_USER_ID?: string
+  readonly VITE_MDOC_WEB_CONTACT_ID?: string
+  readonly VITE_MDOC_WEB_PROJECT_ID?: string
+  readonly VITE_MDOC_WEB_API_KEY?: string
 }
 
 interface ImportMeta {
