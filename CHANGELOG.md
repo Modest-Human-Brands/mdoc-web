@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.0.10
+
+[compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.9...v0.0.10)
+
+### 💅 Refactors
+
+- Update environment variables and configuration for web API integration ([35a4130](https://github.com/Modest-Human-Brands/mdoc-web/commit/35a4130))
+
+### ❤️ Contributors
+
+- Shirsendu Bairagi ([@shba007](https://github.com/shba007))
+
 ## v0.0.9
 
 [compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.8...v0.0.9)
