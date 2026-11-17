@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.0.11
+
+[compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.10...v0.0.11)
+
+### 🚀 Enhancements
+
+- **setup:** Connect to MDoc screen (Figma Setup, step 1) ([4c619ca](https://github.com/Modest-Human-Brands/mdoc-web/commit/4c619ca))
+- **brand:** Add qr customizer to organization branding ([d70574e](https://github.com/Modest-Human-Brands/mdoc-web/commit/d70574e))
+
+### ❤️ Contributors
+
+- Shirsendu Bairagi ([@shba007](https://github.com/shba007))
+
 ## v0.0.10
 
 [compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.9...v0.0.10)
