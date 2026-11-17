@@ -58,14 +58,33 @@ describe('toOrganizationOverride', () => {
           accountNumber: '1234 5678 9012',
           bankName: 'ICICI',
           ifscCode: '',
+          upiId: 'zzz@icici',
         },
       }),
     )
 
     expect(override).toMatchObject({
-      accountDetails: { accountName: 'ZZZ', bankName: 'ICICI', accountNumber: 123456789012 },
+      accountDetails: {
+        accountName: 'ZZZ',
+        bankName: 'ICICI',
+        accountNumber: 123456789012,
+        upiId: 'zzz@icici',
+      },
     })
     expect(override?.accountDetails).not.toHaveProperty('ifscCode')
+  })
+
+  it('sends only non-default QR style options under branding.qr', () => {
+    expect(toOrganizationOverride(profile({ name: 'X' }))).not.toHaveProperty('branding')
+    const override = toOrganizationOverride(
+      profile({
+        name: 'X',
+        qr: { color: 'monochrome', eyeShape: 'rounded', eyeColor: 'brand', logo: false },
+      }),
+    )
+    expect(override).toMatchObject({ branding: { qr: { color: 'monochrome', logo: false } } })
+    const branding = override?.branding as { qr: object }
+    expect(branding.qr).not.toHaveProperty('eyeShape')
   })
 
   it('sends the logo data URL under branding', () => {

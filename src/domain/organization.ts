@@ -1,5 +1,7 @@
 import { config } from '@/config'
 
+import { defaultQrStyle, normalizeQrStyle, type QrStyle } from './qr'
+
 export const ENTITY_TYPES = ['LLP', 'Private Limited', 'Proprietorship'] as const
 export type EntityType = (typeof ENTITY_TYPES)[number]
 
@@ -31,7 +33,14 @@ export interface OrganizationProfile {
   primary: string
   accent: string
   font: string
-  bank: { accountName: string; accountNumber: string; bankName: string; ifscCode: string }
+  bank: {
+    accountName: string
+    accountNumber: string
+    bankName: string
+    ifscCode: string
+    upiId: string
+  }
+  qr: QrStyle
   contactEmail: string
   billingEmail: string
   phone: string
@@ -90,7 +99,8 @@ export function emptyOrganization(): OrganizationProfile {
     primary: '#111827',
     accent: '#5945EA',
     font: DEFAULT_FONT,
-    bank: { accountName: '', accountNumber: '', bankName: '', ifscCode: '' },
+    bank: { accountName: '', accountNumber: '', bankName: '', ifscCode: '', upiId: '' },
+    qr: { ...defaultQrStyle },
     contactEmail: '',
     billingEmail: '',
     phone: '',
@@ -112,6 +122,7 @@ export function loadOrganization(): OrganizationProfile {
       ...base,
       ...saved,
       bank: { ...base.bank, ...saved.bank },
+      qr: normalizeQrStyle(saved.qr),
       socials: { ...base.socials, ...saved.socials },
     }
   } catch {
@@ -160,10 +171,11 @@ export function toOrganizationOverride(
   if (Object.keys(socials).length > 0) override.socials = socials
 
   const bank: Record<string, unknown> = {}
-  const { accountName, accountNumber, bankName, ifscCode } = profile.bank
+  const { accountName, accountNumber, bankName, ifscCode, upiId } = profile.bank
   if (accountName.trim()) bank.accountName = accountName.trim()
   if (bankName.trim()) bank.bankName = bankName.trim()
   if (ifscCode.trim()) bank.ifscCode = ifscCode.trim()
+  if (upiId?.trim()) bank.upiId = upiId.trim()
   const digits = accountNumber.replace(/\D/g, '')
   if (digits !== '' && Number.isSafeInteger(Number(digits))) bank.accountNumber = Number(digits)
   if (Object.keys(bank).length > 0) override.accountDetails = bank
@@ -176,6 +188,11 @@ export function toOrganizationOverride(
   if (primary && primary !== normalizeHex(defaults.primary)) color.primary = primary
   if (accent && accent !== normalizeHex(defaults.accent)) color.accent = accent
   if (Object.keys(color).length > 0) branding.color = color
+  const qr: Record<string, unknown> = {}
+  for (const key of Object.keys(defaultQrStyle) as (keyof QrStyle)[]) {
+    if (profile.qr[key] !== defaultQrStyle[key]) qr[key] = profile.qr[key]
+  }
+  if (Object.keys(qr).length > 0) branding.qr = qr
   const family = profile.font.trim()
   if (family !== '' && family !== defaults.font) branding.font = fontName(family)
   if (Object.keys(branding).length > 0) override.branding = branding

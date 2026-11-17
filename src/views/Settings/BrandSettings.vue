@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 
 import UiButton from '@/components/ui/UiButton.vue'
 import UiColorField from '@/components/ui/UiColorField.vue'
+import UiQrCustomizer from '@/components/ui/UiQrCustomizer.vue'
 import UiLogoUpload from '@/components/ui/UiLogoUpload.vue'
 import UiSectionRow from '@/components/ui/UiSectionRow.vue'
 import UiFontPicker from '@/components/ui/UiFontPicker.vue'
@@ -40,7 +41,7 @@ onMounted(async () => {
   fontUnknown.value = (await isKnown(org.value.font)) === false
 })
 
-const open = ref<'bank' | 'contact' | 'online' | null>(null)
+const open = ref<'bank' | 'contact' | 'online' | 'qr' | null>(null)
 
 const SOCIAL_LABELS: Record<SocialKey, string> = {
   instagram: 'Instagram',
@@ -64,7 +65,13 @@ const onlineSummary = computed(() => {
   return parts.length > 0 ? `${parts.length} added` : 'Add'
 })
 
-function toggle(section: 'bank' | 'contact' | 'online') {
+const qrSummary = computed(() => {
+  const { color, eyeShape, logo } = org.value.qr
+  const colors = color === 'brand' ? 'Brand colors' : 'Monochrome'
+  return `${colors} · ${eyeShape[0]!.toUpperCase()}${eyeShape.slice(1)} eyes · Logo ${logo ? 'on' : 'off'}`
+})
+
+function toggle(section: 'bank' | 'contact' | 'online' | 'qr') {
   open.value = open.value === section ? null : section
 }
 
@@ -169,6 +176,13 @@ function cancel() {
         <UiTextField v-model="org.bank.bankName" label="Bank name" />
         <UiTextField v-model="org.bank.accountNumber" label="Account number" />
         <UiTextField v-model="org.bank.ifscCode" label="IFSC" />
+        <UiTextField
+          v-model="org.bank.upiId"
+          label="UPI ID"
+          hint="optional"
+          placeholder="name@bank"
+          class="col-span-2"
+        />
       </div>
 
       <UiSectionRow
@@ -238,6 +252,19 @@ function cancel() {
           />
         </NotField>
       </div>
+      <UiSectionRow
+        title="QR code"
+        :summary="qrSummary"
+        complete
+        :expanded="open === 'qr'"
+        @click="toggle('qr')"
+      />
+      <UiQrCustomizer
+        v-if="open === 'qr'"
+        v-model="org.qr"
+        :accent="org.accent"
+        :logo="org.logo?.dataUrl"
+      />
     </NotForm>
 
     <template #note>
