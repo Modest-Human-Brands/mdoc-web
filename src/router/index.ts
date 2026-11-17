@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
+import { isConnected } from '@/domain/access'
+import { config } from '@/config'
 import { BRAND_PATH, STEPS, useWizardStore } from '@/stores/wizard'
 
 const router = createRouter({
@@ -46,6 +48,11 @@ const router = createRouter({
       name: 'sign',
       component: () => import('@/views/Signing/ClientSign.vue'),
     },
+    {
+      path: '/setup',
+      name: 'setup',
+      component: () => import('@/views/Setup/ConnectStep.vue'),
+    },
     { path: '/:pathMatch(.*)*', redirect: STEPS[0].path },
   ],
 })
@@ -53,6 +60,8 @@ const router = createRouter({
 router.beforeEach((to) => {
   const wizard = useWizardStore()
 
+  if (to.name === 'sign' || to.name === 'setup') return true
+  if (!isConnected(config)) return { name: 'setup', query: { next: to.fullPath } }
   if (['brand', 'documents', 'document', 'send', 'sign'].includes(String(to.name))) return true
   if (to.name !== 'template' && !wizard.templateId) return STEPS[0].path
   if (to.name === 'review' && !wizard.document) return STEPS[1].path

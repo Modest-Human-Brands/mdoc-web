@@ -1,5 +1,7 @@
 import { useTimeoutFn } from '@vueuse/core'
 
+import { config } from '@/config'
+
 export function safeFileName(name: string, fallback = 'document'): string {
   const cleaned = name
     .split('')
@@ -28,7 +30,9 @@ export function saveBlob(blob: Blob, fileName: string): void {
 }
 
 export async function blobFromUrl(url: string): Promise<Blob> {
-  const response = await fetch(url)
+  const response = await fetch(url, {
+    headers: config.apiKey && !url.startsWith('blob:') ? { 'x-api-key': config.apiKey } : undefined,
+  })
   if (!response.ok) throw new Error(`Download failed (${response.status}).`)
   return await response.blob()
 }

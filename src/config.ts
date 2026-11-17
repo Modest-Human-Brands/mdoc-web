@@ -1,3 +1,5 @@
+import { loadAccess } from '@/domain/access'
+
 export interface RuntimeConfig {
   apiBaseUrl?: string
   siteUrl?: string
@@ -41,16 +43,22 @@ export function readConfig(
     ? undefined
     : window.__MDOC_CONFIG__,
   build: BuildConfig = buildConfig(),
+  saved: Pick<RuntimeConfig, 'organizationId' | 'userId' | 'apiKey'> = {},
 ) {
   return {
     apiBaseUrl: pickConfig(runtime?.apiBaseUrl, build.apiBaseUrl),
     siteUrl: pickConfig(runtime?.siteUrl, build.siteUrl),
-    organizationId: pickConfig(runtime?.organizationId, build.organizationId),
-    userId: pickConfig(runtime?.userId, build.userId),
+    organizationId: pickConfig(saved.organizationId, runtime?.organizationId, build.organizationId),
+    userId: pickConfig(saved.userId, runtime?.userId, build.userId),
     contactId: pickConfig(runtime?.contactId, build.contactId),
     projectId: pickConfig(runtime?.projectId, build.projectId),
-    apiKey: pickConfig(runtime?.apiKey, build.apiKey),
+    apiKey: pickConfig(saved.apiKey, runtime?.apiKey, build.apiKey),
   }
 }
 
-export const config = readConfig()
+function readSaved() {
+  const access = loadAccess()
+  return { organizationId: access.organizationId, userId: access.userId, apiKey: access.apiKey }
+}
+
+export const config = readConfig(undefined, undefined, readSaved())

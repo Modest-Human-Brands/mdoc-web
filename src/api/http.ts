@@ -78,7 +78,7 @@ async function send(path: string, options: RequestOptions): Promise<Response> {
   const { method = 'GET', query, body, signal } = options
   const isForm = body instanceof FormData
   const headers: Record<string, string> = { ...options.headers }
-  if (config.apiKey) headers['x-api-key'] = config.apiKey
+  if (config.apiKey && !headers['x-api-key']) headers['x-api-key'] = config.apiKey
   const init: RequestInit = { method, signal, headers }
   if (body !== undefined) {
     init.body = isForm ? body : JSON.stringify(body)

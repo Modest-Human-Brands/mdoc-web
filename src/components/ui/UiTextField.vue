@@ -13,7 +13,7 @@ withDefaults(
     multiline?: boolean
     numeric?: boolean
     readonly?: boolean
-    type?: 'text' | 'email' | 'tel' | 'date' | 'time' | 'number'
+    type?: 'text' | 'password' | 'email' | 'tel' | 'date' | 'time' | 'number'
     rows?: number
     error?: string
   }>(),

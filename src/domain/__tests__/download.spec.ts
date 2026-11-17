@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test'
 
+vi.mock('@/config', () => ({ config: { apiKey: 'k1' } }))
+
 import { blobFromUrl, pdfFileName, safeFileName, saveBlob } from '../download'
 
 afterEach(() => {
@@ -64,5 +66,16 @@ describe('blobFromUrl', () => {
     )
 
     await expect(blobFromUrl('/api/x')).rejects.toThrow('Download failed (404).')
+  })
+
+  it('sends the API key to the API but never to blob URLs', async () => {
+    const fetchMock = vi.fn<typeof fetch>(() => Promise.resolve(new Response('x')))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await blobFromUrl('/api/document/1/content')
+    await blobFromUrl('blob:preview')
+
+    expect(fetchMock.mock.calls[0]?.[1]?.headers).toEqual({ 'x-api-key': 'k1' })
+    expect(fetchMock.mock.calls[1]?.[1]?.headers).toBeUndefined()
   })
 })

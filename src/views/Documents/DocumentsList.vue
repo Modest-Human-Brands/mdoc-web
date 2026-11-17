@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useTimeoutFn } from '@vueuse/core'
-import { computed, ref, watch } from 'vue'
+import { useObjectUrl, useTimeoutFn } from '@vueuse/core'
+import { computed, ref, shallowRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import { documentsApi, type DocumentListItem } from '@/api'
@@ -47,6 +47,22 @@ const selected = computed(
 
 const actionError = ref<string | null>(null)
 const voidTarget = ref<DocumentListItem | null>(null)
+
+// The preview is fetched with the API key: an <img src> cannot send headers.
+const previewBlob = shallowRef<Blob | null>(null)
+const previewUrl = useObjectUrl(previewBlob)
+watch(
+  () => selected.value?.id,
+  async (id) => {
+    previewBlob.value = null
+    if (!id) return
+    try {
+      const blob = await documentsApi.content(id, { type: 'image' })
+      if (selected.value?.id === id) previewBlob.value = blob
+    } catch {}
+  },
+  { immediate: true },
+)
 
 async function download(item: DocumentListItem) {
   actionError.value = null
@@ -180,7 +196,8 @@ const statusTone = (value: string) =>
             class="flex aspect-[3/4] items-center justify-center overflow-hidden rounded-lg bg-dark-500"
           >
             <img
-              :src="documentsApi.contentUrl(selected.id, { type: 'image' })"
+              v-if="previewUrl"
+              :src="previewUrl"
               :alt="`Preview of ${selected.name}`"
               class="size-full object-contain"
             />
