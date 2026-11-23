@@ -9,6 +9,7 @@ import ClientPicker from '@/components/wizard/ClientPicker.vue'
 import UiSegmentedControl from '@/components/ui/UiSegmentedControl.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
 import UiTextField from '@/components/ui/UiTextField.vue'
+import TermsPicker from '@/components/wizard/TermsPicker.vue'
 import {
   emptyValue,
   getPath,
@@ -18,6 +19,7 @@ import {
   orderedProperties,
   singularLabel,
 } from '@/domain/schema'
+import { isTermsSchema } from '@/domain/terms'
 import { findClient } from '@/composables/useClients'
 import { coveredKeys } from '@/domain/clients'
 import { useWizardStore } from '@/stores/wizard'
@@ -37,12 +39,14 @@ type Block =
   | { kind: 'fields'; entries: [string, JsonSchema][] }
   | { kind: 'section'; key: string; schema: JsonSchema }
   | { kind: 'array'; key: string; schema: JsonSchema }
+  | { kind: 'terms'; key: string; schema: JsonSchema }
 
 const blocks = computed<Block[]>(() => {
   const result: Block[] = []
   for (const [key, child] of orderedProperties(props.schema)) {
     if (props.hidden?.includes(key)) continue
-    if (isObjectSchema(child)) result.push({ kind: 'section', key, schema: child })
+    if (isTermsSchema(child)) result.push({ kind: 'terms', key, schema: child })
+    else if (isObjectSchema(child)) result.push({ kind: 'section', key, schema: child })
     else if (child.type === 'array') result.push({ kind: 'array', key, schema: child })
     else {
       const last = result[result.length - 1]
@@ -237,6 +241,25 @@ function noun(schema: JsonSchema, key: string): string {
           :path="[...base, block.key]"
           :hidden="hiddenFor(block.key, block.schema)"
         />
+      </section>
+
+      <section v-else-if="block.kind === 'terms'" class="flex flex-col gap-3">
+        <h3 class="text-xs tracking-[0.06em] text-light-400 uppercase">
+          {{ block.schema['x-section'] ?? block.schema.title ?? labelFromPath(block.key) }}
+        </h3>
+        <NotField v-slot="{ errors }" :path="dotted([...base, block.key])">
+          <TermsPicker
+            :schema="block.schema"
+            :model-value="valueAt([...base, block.key])"
+            :error="messageFor(errors, [...base, block.key])"
+            @update:model-value="
+              (v) => {
+                set([...base, block.key], v)
+                wizard.flushPreview()
+              }
+            "
+          />
+        </NotField>
       </section>
 
       <NotArrayField

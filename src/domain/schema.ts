@@ -1,5 +1,7 @@
 import type { JsonSchema } from '@/api'
 
+import { isTermsSchema, selectedSlugs, termDefaults } from './terms'
+
 export const EXCLUDED_ROOT_KEYS: readonly string[] = ['organization']
 
 export type Values = Record<string, unknown>
@@ -56,6 +58,7 @@ export function emptyValue(schema: JsonSchema): unknown {
       orderedProperties(schema).map(([key, child]) => [key, emptyValue(child)]),
     )
   }
+  if (isTermsSchema(schema)) return []
   if (schema.type === 'array') return schema.items ? [emptyValue(schema.items)] : []
   if (schema.type === 'boolean') return false
   return ''
@@ -88,6 +91,7 @@ export function toPayload(schema: JsonSchema, value: unknown): unknown {
     }
     return Object.keys(result).length > 0 ? result : undefined
   }
+  if (isTermsSchema(schema)) return selectedSlugs(value)
   if (schema.type === 'array') {
     const items = Array.isArray(value) ? value : []
     const converted = items
@@ -142,6 +146,8 @@ export function schemaDefaults(
     } else if (isObjectSchema(child)) {
       const nested = schemaDefaults(child, overrides, path)
       if (Object.keys(nested).length > 0) result[key] = nested
+    } else if (isTermsSchema(child)) {
+      result[key] = termDefaults(child)
     } else if (child.type !== 'array') {
       const value = child.default
       if (typeof value === 'boolean') result[key] = value

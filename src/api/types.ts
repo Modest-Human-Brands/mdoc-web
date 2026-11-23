@@ -40,8 +40,16 @@ export interface SignerField {
   required?: boolean
 }
 
+export interface TermOption {
+  slug: string
+  title: string
+  type?: string
+  version?: number
+  order?: number
+}
+
 export interface JsonSchema {
-  type?: 'object' | 'array' | 'string' | 'number' | 'integer' | 'boolean'
+  type?: 'object' | 'array' | 'string' | 'number' | 'integer' | 'boolean' | 'terms'
   title?: string
   description?: string
   properties?: Record<string, JsonSchema>
@@ -61,6 +69,9 @@ export interface JsonSchema {
   'x-order'?: number
   'x-widget'?: 'decor' | 'image'
   'x-decor-slot'?: string
+  /** Terms picker descriptor (`type: 'terms'`): `default` and `required` are ordered slugs. */
+  multiple?: boolean
+  options?: TermOption[]
 }
 
 export interface TemplateDetail extends TemplateSummary {
@@ -295,4 +306,59 @@ export interface DocumentListParams {
   offset?: number
   status?: string
   templateId?: string
+}
+export type TermStatus = 'Plan' | 'Draft' | 'Release' | 'Archive'
+
+export interface TermMeta {
+  id: string
+  slug: string
+  title: string
+  type?: string
+  status: TermStatus
+  appliesTo: string[]
+  defaultFor: string[]
+  requiredFor: string[]
+  version: number
+  order: number
+  updatedAt?: string
+  /** Only with `template`: locked on in the picker. */
+  required?: boolean
+  /** Only with `template`: pre-selected in the picker. */
+  selected?: boolean
+}
+
+export interface TermDetail extends TermMeta {
+  /** Tiptap JSON, limited to the terms nodes. */
+  content: unknown
+  markdown: string
+}
+
+export interface TermListParams {
+  template?: string
+  status?: TermStatus
+}
+
+export interface CreateTermRequest {
+  title: string
+  slug: string
+  type?: string
+  appliesTo?: string[]
+  defaultFor?: string[]
+  requiredFor?: string[]
+  order?: number
+}
+
+export type UpdateTermRequest = Partial<
+  Pick<TermMeta, 'title' | 'type' | 'status' | 'appliesTo' | 'defaultFor' | 'requiredFor' | 'order'>
+>
+
+export interface SaveTermResponse {
+  success: boolean
+  version: number
+  updatedAt?: string
+}
+
+export interface TemplateDefaults {
+  templateId: string
+  slugs: string[]
 }

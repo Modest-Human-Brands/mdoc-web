@@ -2,6 +2,7 @@ import type { JsonSchema } from '@/api'
 
 import { describeDecor } from './decor'
 import { formatDate } from './invoice'
+import { selectedSlugs, termTitle } from './terms'
 import type { OrganizationProfile } from './organization'
 import {
   getPath,
@@ -117,6 +118,17 @@ export function buildReview(schema: JsonSchema, values: Values): ReviewSection[]
     const value = getPath(values, [key])
     if (isObjectSchema(child)) {
       collect(child, value, titleOf(child, key), sections)
+    } else if (child.type === 'terms') {
+      const chosen = selectedSlugs(value)
+      if (chosen.length > 0) {
+        sections.push({
+          title: titleOf(child, key),
+          rows: chosen.map((slug, index) => ({
+            label: `Term ${index + 1}`,
+            value: termTitle(child, slug),
+          })),
+        })
+      }
     } else if (child.type === 'array') {
       collectArray(child, value, titleOf(child, key), sections)
     } else {

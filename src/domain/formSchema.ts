@@ -11,6 +11,7 @@ import {
   stripExcluded,
   type Problem,
 } from './schema'
+import { missingTerms, selectedSlugs, termTitle } from './terms'
 import { checkLeaf } from './validate'
 
 export type FormSchema = z.ZodObject<z.ZodRawShape>
@@ -91,7 +92,20 @@ function arraySchema(node: JsonSchema, required: boolean, label: string) {
   )
 }
 
+function termsSchema(node: JsonSchema) {
+  return z.preprocess(
+    (value) => selectedSlugs(value),
+    z.array(z.string()).superRefine((slugs, ctx) => {
+      for (const slug of missingTerms(node, slugs)) {
+        const title = termTitle(node, slug)
+        report(ctx, 'required', title, `${title} is required`)
+      }
+    }),
+  )
+}
+
 function fieldSchema(node: JsonSchema, required: boolean, label: string): z.ZodType {
+  if (node.type === 'terms') return termsSchema(node)
   if (isObjectSchema(node)) return nestedObject(node)
   if (node.type === 'array') return arraySchema(node, required, label)
   return leafSchema(node, label, required)
