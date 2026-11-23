@@ -5,18 +5,12 @@ import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { termsApi, type TermStatus } from '@/api'
 import TermsEditor from '@/components/terms/TermsEditor.vue'
+import TermTemplates from '@/components/terms/TermTemplates.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
 import UiTextField from '@/components/ui/UiTextField.vue'
 import { errorMessage } from '@/composables/useTemplates'
-import {
-  isValidSlug,
-  reconcileLists,
-  slugify,
-  TERM_STATUSES,
-  TERM_TEMPLATES,
-  toggleId,
-} from '@/domain/terms'
+import { isValidSlug, reconcileLists, slugify, TERM_STATUSES } from '@/domain/terms'
 
 const AUTOSAVE_MS = 1200
 
@@ -100,17 +94,11 @@ function setLists(next: { appliesTo: string[]; defaultFor: string[]; requiredFor
   detailsSaved.value = false
 }
 
-const toggleApplies = (id: string) => setLists({ ...form, appliesTo: toggleId(form.appliesTo, id) })
-const toggleDefault = (id: string) => {
-  const on = form.defaultFor.includes(id)
-  setLists({
-    ...form,
-    defaultFor: toggleId(form.defaultFor, id),
-    requiredFor: on ? form.requiredFor.filter((item) => item !== id) : form.requiredFor,
-  })
-}
-const toggleRequired = (id: string) =>
-  setLists({ ...form, requiredFor: toggleId(form.requiredFor, id) })
+const lists = computed(() => ({
+  appliesTo: form.appliesTo,
+  defaultFor: form.defaultFor,
+  requiredFor: form.requiredFor,
+}))
 
 async function saveDetails() {
   submitted.value = true
@@ -246,67 +234,7 @@ const contentStatus = computed(() => {
           />
           <UiTextField v-model="form.order" label="Order" numeric :error="errors.order" />
 
-          <fieldset class="flex flex-col gap-1.5">
-            <legend class="text-sm font-semi-bold text-light-600">Applies to</legend>
-            <p class="text-xs text-light-400">None selected means any template.</p>
-            <label
-              v-for="template in TERM_TEMPLATES"
-              :key="template.id"
-              class="flex items-center gap-2 text-sm"
-            >
-              <input
-                type="checkbox"
-                :checked="form.appliesTo.includes(template.id)"
-                @change="toggleApplies(template.id)"
-              />
-              {{ template.label }}
-            </label>
-          </fieldset>
-
-          <fieldset class="flex flex-col gap-1.5">
-            <legend class="text-sm font-semi-bold text-light-600">Default for</legend>
-            <label
-              v-for="template in TERM_TEMPLATES"
-              :key="template.id"
-              class="flex items-center gap-2 text-sm"
-              :class="
-                form.appliesTo.length > 0 && !form.appliesTo.includes(template.id)
-                  ? 'text-light-400'
-                  : ''
-              "
-            >
-              <input
-                type="checkbox"
-                :checked="form.defaultFor.includes(template.id)"
-                :disabled="form.appliesTo.length > 0 && !form.appliesTo.includes(template.id)"
-                @change="toggleDefault(template.id)"
-              />
-              {{ template.label }}
-            </label>
-          </fieldset>
-
-          <fieldset class="flex flex-col gap-1.5">
-            <legend class="text-sm font-semi-bold text-light-600">Required for</legend>
-            <p class="text-xs text-light-400">A required term is always a default.</p>
-            <label
-              v-for="template in TERM_TEMPLATES"
-              :key="template.id"
-              class="flex items-center gap-2 text-sm"
-              :class="
-                form.appliesTo.length > 0 && !form.appliesTo.includes(template.id)
-                  ? 'text-light-400'
-                  : ''
-              "
-            >
-              <input
-                type="checkbox"
-                :checked="form.requiredFor.includes(template.id)"
-                :disabled="form.appliesTo.length > 0 && !form.appliesTo.includes(template.id)"
-                @change="toggleRequired(template.id)"
-              />
-              {{ template.label }}
-            </label>
-          </fieldset>
+          <TermTemplates :model-value="lists" @update:model-value="setLists" />
 
           <p v-if="detailsError" class="text-sm text-alert-400" role="alert">{{ detailsError }}</p>
           <p v-if="detailsSaved" class="text-sm text-success-400" role="status">Details saved.</p>
