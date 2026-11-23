@@ -100,7 +100,10 @@ const statusTone = (value: string) =>
         </span>
         <h1 class="text-base font-bold">MDoc</h1>
       </div>
-      <UiButton @click="router.push(STEPS[0].path)">New document</UiButton>
+      <div class="flex items-center gap-2">
+        <UiButton variant="ghost" @click="router.push('/terms')">Terms</UiButton>
+        <UiButton @click="router.push(STEPS[0].path)">New document</UiButton>
+      </div>
     </header>
 
     <div class="flex min-h-0 flex-1 border-t border-dark-600">

@@ -49,6 +49,21 @@ const router = createRouter({
       component: () => import('@/views/Signing/ClientSign.vue'),
     },
     {
+      path: '/terms',
+      name: 'terms',
+      component: () => import('@/views/Terms/TermsList.vue'),
+    },
+    {
+      path: '/terms/new',
+      name: 'term-new',
+      component: () => import('@/views/Terms/TermEditor.vue'),
+    },
+    {
+      path: '/terms/:slug',
+      name: 'term',
+      component: () => import('@/views/Terms/TermEditor.vue'),
+    },
+    {
       path: '/setup',
       name: 'setup',
       component: () => import('@/views/Setup/ConnectStep.vue'),
@@ -62,7 +77,12 @@ router.beforeEach((to) => {
 
   if (to.name === 'sign' || to.name === 'setup') return true
   if (!isConnected(config)) return { name: 'setup', query: { next: to.fullPath } }
-  if (['brand', 'documents', 'document', 'send', 'sign'].includes(String(to.name))) return true
+  if (
+    ['brand', 'documents', 'document', 'send', 'sign', 'terms', 'term-new', 'term'].includes(
+      String(to.name),
+    )
+  )
+    return true
   if (to.name !== 'template' && !wizard.templateId) return STEPS[0].path
   if (to.name === 'review' && !wizard.document) return STEPS[1].path
   return true

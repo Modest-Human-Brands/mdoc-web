@@ -115,7 +115,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: env.VITE_MDOC_API_URL || 'http://localhost:3001',
+        target: env.VITE_MDOC_WEB_API_URL || 'http://localhost:3001',
         changeOrigin: true,
       },
     },

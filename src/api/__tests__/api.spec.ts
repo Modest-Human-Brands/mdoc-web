@@ -43,7 +43,7 @@ describe('api client', () => {
     const [url, init] = fetchMock.mock.calls[0] ?? []
     expect(url).toBe('/api/document/template')
     expect(init?.method).toBe('POST')
-    expect(init?.headers).toEqual({ 'Content-Type': 'application/json' })
+    expect(init?.headers).toMatchObject({ 'Content-Type': 'application/json' })
     expect(JSON.parse(init?.body as string)).toMatchObject({ userId: 'u', data: { a: 1 } })
   })
 
@@ -153,7 +153,8 @@ describe('api client', () => {
     })
 
     const init = fetchMock.mock.calls[0]?.[1]
-    expect(init?.headers).toEqual({ 'Content-Type': 'application/json' })
+    expect(init?.headers).toMatchObject({ 'Content-Type': 'application/json' })
+    expect(init?.headers).not.toMatchObject({ 'x-org-id': id })
     expect(JSON.parse(init?.body as string)).toMatchObject({ organizationId: id })
   })
 

@@ -1,5 +1,7 @@
 import type { Access } from '@/domain/access'
 
+import { DEFAULT_ORGANIZATION_ID } from '@/domain/organization'
+
 import { ApiError, request } from './http'
 import { orgHeaders } from './organization'
 
@@ -11,7 +13,12 @@ export async function verifyAccess(access: Access, signal?: AbortSignal): Promis
   try {
     await request('/document', {
       query: { limit: 1 },
-      headers: { 'x-api-key': access.apiKey.trim(), ...orgHeaders(access.organizationId) },
+      headers: {
+        'x-api-key': access.apiKey.trim(),
+        'x-org-id': access.organizationId.trim() || DEFAULT_ORGANIZATION_ID,
+        'x-user-id': access.userId.trim(),
+        ...orgHeaders(access.organizationId),
+      },
       signal,
     })
   } catch (error) {

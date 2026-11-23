@@ -1,4 +1,5 @@
 import { config } from '@/config'
+import { DEFAULT_ORGANIZATION_ID } from '@/domain/organization'
 
 export interface FieldError {
   field: string
@@ -79,6 +80,9 @@ async function send(path: string, options: RequestOptions): Promise<Response> {
   const isForm = body instanceof FormData
   const headers: Record<string, string> = { ...options.headers }
   if (config.apiKey && !headers['x-api-key']) headers['x-api-key'] = config.apiKey
+  // The API scopes every request to an organization and the acting user.
+  if (!headers['x-org-id']) headers['x-org-id'] = config.organizationId || DEFAULT_ORGANIZATION_ID
+  if (config.userId && !headers['x-user-id']) headers['x-user-id'] = config.userId
   const init: RequestInit = { method, signal, headers }
   if (body !== undefined) {
     init.body = isForm ? body : JSON.stringify(body)
