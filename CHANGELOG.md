@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.0.11
+
+[compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.10...v0.0.11)
+
+### 🚀 Enhancements
+
+- **setup:** Connect to MDoc screen (Figma Setup, step 1) ([4c619ca](https://github.com/Modest-Human-Brands/mdoc-web/commit/4c619ca))
+- **brand:** Add qr customizer to organization branding ([d70574e](https://github.com/Modest-Human-Brands/mdoc-web/commit/d70574e))
+- **terms:** Ordered terms picker and terms api client ([b2b9ad0](https://github.com/Modest-Human-Brands/mdoc-web/commit/b2b9ad0))
+- **terms:** Replace applies, default and required checkboxes with a per-template level ([1b24c67](https://github.com/Modest-Human-Brands/mdoc-web/commit/1b24c67))
+
+### 🩹 Fixes
+
+- **api:** Send organization and user headers on every request ([b301734](https://github.com/Modest-Human-Brands/mdoc-web/commit/b301734))
+
+### ❤️ Contributors
+
+- Shirsendu Bairagi ([@shba007](https://github.com/shba007))
+
 ## v0.0.10
 
 [compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.9...v0.0.10)
