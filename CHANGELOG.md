@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.0.15
+
+[compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.14...v0.0.15)
+
+### 🚀 Enhancements
+
+- **ui:** Sync screens and theme with the updated figma design ([1fd6024](https://github.com/Modest-Human-Brands/mdoc-web/commit/1fd6024))
+
+### ❤️ Contributors
+
+- Shirsendu Bairagi ([@shba007](https://github.com/shba007))
+
 ## v0.0.14
 
 [compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.13...v0.0.14)
