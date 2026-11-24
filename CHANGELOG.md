@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.0.12
+
+[compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.11...v0.0.12)
+
+### 🚀 Enhancements
+
+- **router:** Update routing logic to redirect to HOME_PATH and improve access checks ([debdd6a](https://github.com/Modest-Human-Brands/mdoc-web/commit/debdd6a))
+
+### ❤️ Contributors
+
+- Shirsendu Bairagi ([@shba007](https://github.com/shba007))
+
 ## v0.0.11
 
 [compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.10...v0.0.11)
