@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.0.13
+
+[compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.12...v0.0.13)
+
+### 💅 Refactors
+
+- **setup:** Streamline access form initialization and improve caching in nginx config ([8237a05](https://github.com/Modest-Human-Brands/mdoc-web/commit/8237a05))
+
+### ❤️ Contributors
+
+- Shirsendu Bairagi ([@shba007](https://github.com/shba007))
+
 ## v0.0.12
 
 [compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.11...v0.0.12)
