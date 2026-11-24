@@ -100,9 +100,23 @@ async function send(path: string, options: RequestOptions): Promise<Response> {
   return response
 }
 
+/** A web page or other non-JSON answer means the request never reached the MDoc API. */
+export function notAnApiAnswer(): ApiError {
+  const where = baseUrl || 'this site'
+  return new ApiError(
+    502,
+    `The MDoc API did not answer at ${where}. Ask your admin to check the API address (VITE_MDOC_WEB_API_URL) or the /api proxy.`,
+  )
+}
+
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const response = await send(path, options)
-  return (await response.json()) as T
+  if ((response.headers.get('content-type') ?? '').includes('text/html')) throw notAnApiAnswer()
+  try {
+    return (await response.json()) as T
+  } catch {
+    throw notAnApiAnswer()
+  }
 }
 
 export async function requestBlob(path: string, options: RequestOptions = {}): Promise<Blob> {

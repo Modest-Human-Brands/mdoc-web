@@ -170,4 +170,32 @@ describe('api client', () => {
       message: expect.stringContaining('API key'),
     })
   })
+
+  it('explains a web page answer as the API not being reachable', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>(() =>
+        Promise.resolve(
+          new Response('<!doctype html><html></html>', {
+            status: 200,
+            headers: { 'content-type': 'text/html' },
+          }),
+        ),
+      ),
+    )
+
+    const error = await templatesApi.list().catch((e: unknown) => e)
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect((error as ApiError).message).toContain('did not answer')
+  })
+
+  it('treats unparseable JSON the same way', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>(() => Promise.resolve(new Response('nope', { status: 200 }))),
+    )
+
+    await expect(templatesApi.list()).rejects.toMatchObject({ name: 'ApiError', status: 502 })
+  })
 })
