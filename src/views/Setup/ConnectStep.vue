@@ -6,16 +6,12 @@ import { ApiError } from '@/api'
 import { verifyAccess } from '@/api/access'
 import UiButton from '@/components/ui/UiButton.vue'
 import UiTextField from '@/components/ui/UiTextField.vue'
-import { config } from '@/config'
-import { accessErrors, safeNext, saveAccess, type Access } from '@/domain/access'
+import { accessErrors, loadAccess, safeNext, saveAccess, type Access } from '@/domain/access'
 
 const route = useRoute()
 
-const form = reactive<Access>({
-  organizationId: config.organizationId,
-  userId: config.userId,
-  apiKey: config.apiKey,
-})
+// Only what this browser saved is offered back; runtime config and .env are never shown here.
+const form = reactive<Access>(loadAccess())
 const submitted = ref(false)
 const busy = ref(false)
 const serverError = ref('')
