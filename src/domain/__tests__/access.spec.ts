@@ -60,10 +60,10 @@ describe('isConnected and safeNext', () => {
 
   it('only returns to same-app paths', () => {
     expect(safeNext('/documents?x=1')).toBe('/documents?x=1')
-    expect(safeNext('//evil.example')).toBe('/')
-    expect(safeNext('https://evil.example')).toBe('/')
-    expect(safeNext('/setup')).toBe('/')
-    expect(safeNext(undefined)).toBe('/')
+    expect(safeNext('//evil.example')).toBe('/documents')
+    expect(safeNext('https://evil.example')).toBe('/documents')
+    expect(safeNext('/setup')).toBe('/documents')
+    expect(safeNext(undefined)).toBe('/documents')
   })
 })
 

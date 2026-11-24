@@ -72,9 +72,11 @@ export function isConnected(access: { userId?: string; apiKey?: string }): boole
   return Boolean(access.userId?.trim() && access.apiKey?.trim())
 }
 
-/** Only same-app paths are allowed as a return target after connecting. */
+export const HOME_PATH = '/documents'
+
+/** Only same-app paths are allowed as a return target after connecting; anything else lands on Documents. */
 export function safeNext(value: unknown): string {
   return typeof value === 'string' && /^\/(?!\/)/.test(value) && !value.startsWith('/setup')
     ? value
-    : '/'
+    : HOME_PATH
 }

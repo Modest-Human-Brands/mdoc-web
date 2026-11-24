@@ -1,13 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
-import { isConnected } from '@/domain/access'
-import { config } from '@/config'
+import { HOME_PATH, isConnected, loadAccess } from '@/domain/access'
 import { BRAND_PATH, STEPS, useWizardStore } from '@/stores/wizard'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
-    { path: '/', redirect: STEPS[0].path },
+    { path: '/', redirect: HOME_PATH },
     {
       path: STEPS[0].path,
       name: 'template',
@@ -68,7 +67,7 @@ const router = createRouter({
       name: 'setup',
       component: () => import('@/views/Setup/ConnectStep.vue'),
     },
-    { path: '/:pathMatch(.*)*', redirect: STEPS[0].path },
+    { path: '/:pathMatch(.*)*', redirect: HOME_PATH },
   ],
 })
 
@@ -76,7 +75,8 @@ router.beforeEach((to) => {
   const wizard = useWizardStore()
 
   if (to.name === 'sign' || to.name === 'setup') return true
-  if (!isConnected(config)) return { name: 'setup', query: { next: to.fullPath } }
+  // Setup is gated on details saved in this browser; runtime config and .env only pre-fill it.
+  if (!isConnected(loadAccess())) return { name: 'setup', query: { next: to.fullPath } }
   if (
     ['brand', 'documents', 'document', 'send', 'sign', 'terms', 'term-new', 'term'].includes(
       String(to.name),
