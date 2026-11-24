@@ -5,7 +5,7 @@ export type StatusFilter = (typeof STATUS_FILTERS)[number]
 
 export const EDITABLE_STATUSES = ['Plan', 'Draft', 'Ready', 'Delivered'] as const
 
-export const PAGE_SIZE = 10
+export const PAGE_SIZE = 24
 
 export function formatDay(iso: string | undefined): string {
   if (!iso) return ''
@@ -108,4 +108,69 @@ export function activityOf(detail: DocumentDetail, signers: SignerQueueEntry[]):
     })
   }
   return entries.sort((a, b) => b.at.localeCompare(a.at))
+}
+export const BOARD_COLUMNS = [
+  'Draft',
+  'Ready',
+  'Sent',
+  'Partially Signed',
+  'Signed',
+  'Expired',
+] as const
+export type BoardColumn = (typeof BOARD_COLUMNS)[number] | 'Void'
+
+/** Backend statuses without a column of their own fall into the nearest stage. */
+export function boardColumn(status: string): BoardColumn {
+  switch (status) {
+    case 'Ready':
+      return 'Ready'
+    case 'Sent':
+    case 'Delivered':
+      return 'Sent'
+    case 'Partially Signed':
+      return 'Partially Signed'
+    case 'Completed':
+    case 'Signed':
+      return 'Signed'
+    case 'Expired':
+      return 'Expired'
+    case 'Void':
+      return 'Void'
+    default:
+      return 'Draft'
+  }
+}
+
+export function groupByColumn<T extends { status: string }>(
+  items: readonly T[],
+): { column: BoardColumn; items: T[] }[] {
+  const groups = new Map<BoardColumn, T[]>(BOARD_COLUMNS.map((column) => [column, []]))
+  for (const item of items) {
+    const column = boardColumn(item.status)
+    groups.set(column, [...(groups.get(column) ?? []), item])
+  }
+  return [...groups]
+    .filter(([column, list]) => column !== 'Void' || list.length > 0)
+    .map(([column, list]) => ({ column, items: list }))
+}
+
+const UNITS: readonly (readonly [string, number])[] = [
+  ['w', 604_800_000],
+  ['d', 86_400_000],
+  ['h', 3_600_000],
+  ['m', 60_000],
+]
+
+/** "2h ago", "1d ago"; empty when the date is missing or unreadable. */
+export function formatAgo(iso: string | undefined, now = Date.now()): string {
+  if (!iso) return ''
+  const time = new Date(iso).getTime()
+  if (Number.isNaN(time)) return ''
+  const diff = Math.max(0, now - time)
+  for (const [unit, size] of UNITS) if (diff >= size) return `${Math.floor(diff / size)}${unit} ago`
+  return 'just now'
+}
+
+export function initialOf(name: string | undefined): string {
+  return name?.trim().charAt(0).toUpperCase() ?? ''
 }

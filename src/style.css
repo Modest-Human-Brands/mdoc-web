@@ -7,47 +7,50 @@
   --color-white: #ffffff;
   --color-black: #000000;
 
-  --color-dark-400: #191919;
-  --color-dark-500: #2b2b2b;
-  --color-dark-600: #3d3d3d;
+  /* Synced from the Figma "Atoms" variables (Colors/Primitives). */
+  --color-dark-400: #0c0912;
+  --color-dark-500: #14121a;
+  --color-dark-600: #3b3440;
+  --color-overlay: #2e2e32;
 
-  --color-light-400: #8d8d8d;
-  --color-light-500: #b4b4b4;
-  --color-light-600: #d9d9d9;
-  --color-light-700: #eeeeee;
-  --color-light-800: #f4f4f4;
+  --color-light-400: #867e8e;
+  --color-light-500: #98989f;
+  --color-light-600: #e5e4e7;
+  --color-light-700: #e5e4e7;
+  --color-light-800: #f4f3ec;
 
-  --color-accent-400: #6672ff;
-  --color-accent-500: #5945ea;
-  --color-accent-600: #4533cc;
-  --color-accent-soft: #e4e6ff;
+  --color-accent-400: #b39aff;
+  --color-accent-500: #6c3bff;
+  --color-accent-600: #5c32d9;
+  --color-accent-soft: #eae4ff;
 
-  --color-info-400: #66c1ff;
-  --color-info-500: #47a8eb;
-  --color-info-600: #338ecc;
-  --color-info-soft: #e4f4ff;
+  --color-info-400: #a8b1ff;
+  --color-info-500: #5c73e7;
+  --color-info-600: #3e63dd;
+  --color-info-soft: #e9eaff;
 
-  --color-success-400: #66ffb6;
-  --color-success-500: #47eb9c;
-  --color-success-600: #33cc83;
-  --color-success-700: #1f8a57;
-  --color-success-soft: #ddffef;
-  --color-success-subtle: #1f4a35;
-  --color-success-surface: #1f3229;
+  --color-success-400: #3dd68c;
+  --color-success-500: #30a46c;
+  --color-success-600: #298459;
+  --color-success-700: #18794e;
+  --color-success-soft: #ddf5ed;
+  --color-success-subtle: #14483b;
+  --color-success-surface: #15312d;
 
-  --color-warning-400: #ffcf6b;
-  --color-warning-500: #ffb83d;
-  --color-warning-600: #ff9f1a;
-  --color-warning-soft: #fff3da;
+  --color-warning-400: #f9b44e;
+  --color-warning-500: #da8b17;
+  --color-warning-600: #a46a0a;
+  --color-warning-soft: #fcf4dc;
 
-  --color-alert-400: #ff6680;
-  --color-alert-500: #eb4864;
-  --color-alert-600: #cc334d;
-  --color-alert-soft: #ffe7eb;
+  --color-alert-400: #f66f81;
+  --color-alert-500: #f14158;
+  --color-alert-600: #b62a3c;
+  --color-alert-soft: #fee4e8;
 
-  --font-main: 'Exo 2 Variable', 'Exo 2 fallback', system-ui, sans-serif;
-  --font-sub: 'Exo 2 Variable', 'Exo 2 fallback', system-ui, sans-serif;
+  --font-main: 'Geist Variable', 'Geist fallback', system-ui, sans-serif;
+  --font-sub: var(--font-main);
   --font-sans: var(--font-main);
+  --font-mono: 'Geist Mono Variable', 'Geist Mono fallback', ui-monospace, monospace;
 
   --font-weight-light: 300;
   --font-weight-regular: 400;
@@ -57,17 +60,17 @@
   --text-2xs: 10px;
   --text-2xs--line-height: 12px;
   --text-xs: 12px;
-  --text-xs--line-height: 14px;
+  --text-xs--line-height: 16px;
   --text-sm: 14px;
-  --text-sm--line-height: 17px;
+  --text-sm--line-height: 20px;
   --text-base: 16px;
   --text-base--line-height: 24px;
   --text-lg: 20px;
-  --text-lg--line-height: 25px;
+  --text-lg--line-height: 28px;
   --text-xl: 24px;
-  --text-xl--line-height: 30px;
-  --text-2xl: 32px;
-  --text-2xl--line-height: 40px;
+  --text-xl--line-height: 32px;
+  --text-2xl: 30px;
+  --text-2xl--line-height: 36px;
   --text-3xl: 40px;
   --text-3xl--line-height: 50px;
   --text-4xl: 48px;
@@ -89,7 +92,7 @@
   --container-sidebar: 240px;
   --container-page: 1200px;
 
-  --shadow-focus-ring: 0 0 0 3px rgb(102 114 255 / 0.25);
+  --shadow-focus-ring: 0 0 0 3px rgb(108 59 255 / 0.35);
   --shadow-doc-page: 0 24px 60px rgb(0 0 0 / 0.45);
   --shadow-toolbar: 0 12px 32px rgb(0 0 0 / 0.45);
 }

@@ -12,6 +12,7 @@ import {
   type VerifySessionResponse,
 } from '@/api'
 import AdoptSignatureDialog from '@/components/signing/AdoptSignatureDialog.vue'
+import SigningStatusDialog from '@/components/signing/SigningStatusDialog.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import PreviewPanel from '@/components/wizard/PreviewPanel.vue'
 import { errorMessage } from '@/composables/useTemplates'
@@ -41,6 +42,9 @@ const myFields = ref<SignerField[]>([])
 const dialogOpen = ref(false)
 const busy = ref(false)
 const failure = ref<string | null>(null)
+const signStage = ref<'idle' | 'signing' | 'failed'>('idle')
+const signStep = ref<1 | 2>(1)
+let lastFields: Record<string, string> = {}
 const signedAt = ref<Date | null>(null)
 
 const signers = computed(() => (detail.value ? signersOf(detail.value) : []))
@@ -89,22 +93,28 @@ watch(link, init, { immediate: true })
 async function adopt(fields: Record<string, string>) {
   const parsed = link.value
   if (!parsed) return
+  lastFields = fields
   busy.value = true
   failure.value = null
+  signStep.value = 1
+  signStage.value = 'signing'
+  dialogOpen.value = false
   try {
     const prepared = await signingApi.prepare(parsed.id, {
       sessionToken: parsed.token,
       fields,
       telemetry: { userAgent: navigator.userAgent },
     })
+    signStep.value = 2
     await signingApi.signOnServer(parsed.id, prepared.sessionId)
     signedAt.value = new Date()
-    dialogOpen.value = false
     detail.value = await documentsApi.get(parsed.id)
     pdf.value = await documentsApi.content(parsed.id)
+    signStage.value = 'idle'
     state.value = 'signed'
   } catch (e) {
     failure.value = errorMessage(e)
+    signStage.value = 'failed'
   } finally {
     busy.value = false
   }
@@ -145,7 +155,7 @@ async function downloadSigned() {
         v-else-if="state === 'invalid'"
         class="flex w-full max-w-140 flex-col gap-4 rounded-2xl border border-dark-600 bg-dark-500 p-8"
       >
-        <p class="text-xs tracking-widest text-light-400 uppercase">Link unavailable</p>
+        <p class="font-mono text-xs tracking-widest text-light-400 uppercase">Link unavailable</p>
         <h1 class="text-2xl font-bold">This signing link doesn't work</h1>
         <p class="text-light-500">
           For security, signing links stop working after they expire. Ask the sender to send you a
@@ -157,12 +167,14 @@ async function downloadSigned() {
         v-else-if="state === 'landing' && detail"
         class="flex w-full max-w-140 flex-col gap-4 rounded-2xl border border-dark-600 bg-dark-500 p-8"
       >
-        <p class="text-xs tracking-widest text-light-400 uppercase">Signature requested</p>
+        <p class="font-mono text-xs tracking-widest text-light-400 uppercase">
+          Signature requested
+        </p>
         <h1 class="text-2xl font-bold">Your signature is needed</h1>
         <p class="text-light-500">
           {{ sender }} has sent you {{ detail.name }}. Review the document, then sign.
         </p>
-        <dl class="flex flex-col gap-3 rounded-lg bg-dark-400 p-4 text-sm">
+        <dl class="flex flex-col gap-3 rounded-lg bg-overlay p-4 text-sm">
           <div>
             <dt class="text-xs text-light-400">Document</dt>
             <dd>{{ detail.name }}</dd>
@@ -178,16 +190,20 @@ async function downloadSigned() {
         </p>
       </section>
 
-      <div v-else-if="state === 'signing' && detail" class="flex size-full min-h-0 gap-3">
+      <div
+        v-else-if="state === 'signing' && detail"
+        class="-m-6 flex size-[calc(100%+3rem)] min-h-0"
+      >
         <PreviewPanel
           :label="detail.name"
           :url="pdfUrl ?? null"
           :reset-key="detail.id"
           :fields="myFields"
+          viewer
           @mark="dialogOpen = true"
         />
         <aside
-          class="flex w-96 shrink-0 flex-col gap-5 overflow-y-auto px-2"
+          class="flex w-96 shrink-0 flex-col gap-5 overflow-y-auto border-l border-dark-600 px-6 py-6"
           aria-label="Signing details"
         >
           <div class="flex items-start justify-between gap-3">
@@ -237,7 +253,7 @@ async function downloadSigned() {
         v-else-if="(state === 'signed' || state === 'already') && detail"
         class="flex w-full max-w-140 flex-col gap-4 rounded-2xl border border-dark-600 bg-dark-500 p-8"
       >
-        <p class="text-xs tracking-widest text-light-400 uppercase">
+        <p class="font-mono text-xs tracking-widest text-light-400 uppercase">
           {{ state === 'signed' ? 'Signed' : 'Already signed' }}
         </p>
         <h1 class="text-2xl font-bold">
@@ -252,7 +268,7 @@ async function downloadSigned() {
               : 'Your signature on this document was recorded. There is nothing more to do.'
           }}
         </p>
-        <dl class="flex flex-col gap-3 rounded-lg bg-dark-400 p-4 text-sm">
+        <dl class="flex flex-col gap-3 rounded-lg bg-overlay p-4 text-sm">
           <div v-if="signedOn">
             <dt class="text-xs text-light-400">Signed on</dt>
             <dd>{{ signedOn }}</dd>
@@ -278,6 +294,13 @@ async function downloadSigned() {
       :error="failure"
       @close="dialogOpen = false"
       @adopt="adopt"
+    />
+    <SigningStatusDialog
+      :state="signStage"
+      :step="signStep"
+      :error="failure"
+      @close="signStage = 'idle'"
+      @retry="adopt(lastFields)"
     />
   </div>
 </template>

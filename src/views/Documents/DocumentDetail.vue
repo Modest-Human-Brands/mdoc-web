@@ -14,6 +14,7 @@ import {
   canSend,
   canVoid as isVoidable,
   EDITABLE_STATUSES,
+  formatAgo,
   formatDay,
   signedCount,
   signerCaption,
@@ -127,7 +128,7 @@ async function changeStatus(event: Event) {
 </script>
 
 <template>
-  <div class="flex h-full min-h-0 gap-3 bg-dark-400 p-3 text-white">
+  <div class="flex h-full min-h-0 bg-dark-400 text-white">
     <PreviewPanel
       :label="detail?.name ?? 'Document'"
       :url="pdfUrl ?? null"
@@ -136,20 +137,15 @@ async function changeStatus(event: Event) {
       :fetch-download="() => documentsApi.content(id)"
       :download-name="detail?.name"
       :reset-key="id"
+      viewer
+      closable
+      @close="router.push('/documents')"
     />
 
     <aside
-      class="flex w-105 shrink-0 flex-col gap-5 overflow-y-auto px-4 py-4"
+      class="flex w-105 shrink-0 flex-col gap-5 overflow-y-auto border-l border-dark-600 px-6 py-6"
       aria-label="Document details"
     >
-      <button
-        type="button"
-        class="self-start text-sm font-semi-bold text-light-400 hover:text-white"
-        @click="router.push('/documents')"
-      >
-        ← Documents
-      </button>
-
       <p v-if="error" class="rounded-md bg-alert-600 px-3 py-2 text-sm" role="alert">
         Couldn't load this document: {{ error }}
       </p>
@@ -217,12 +213,15 @@ async function changeStatus(event: Event) {
             <li
               v-for="entry in activity"
               :key="entry.title + entry.at"
-              class="flex flex-col text-sm"
+              class="flex items-start justify-between gap-3 text-sm"
             >
-              <span>{{ entry.title }}</span>
-              <span class="text-xs text-light-400"
-                >{{ entry.detail }} · {{ formatDay(entry.at) }}</span
-              >
+              <span class="flex min-w-0 flex-col">
+                <span>{{ entry.title }}</span>
+                <span class="text-xs text-light-400">{{ entry.detail }}</span>
+              </span>
+              <span class="shrink-0 text-xs text-light-400" :title="formatDay(entry.at)">{{
+                formatAgo(entry.at)
+              }}</span>
             </li>
           </ul>
         </section>

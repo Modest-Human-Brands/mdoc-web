@@ -21,7 +21,7 @@ withDefaults(
       disabled
         ? 'border-dark-600 bg-dark-500 text-light-400'
         : variant === 'primary'
-          ? 'border-accent-500 bg-accent-500 text-white hover:border-accent-400 hover:bg-accent-400 active:border-accent-600 active:bg-accent-600'
+          ? 'border-white bg-white text-dark-400 hover:border-light-600 hover:bg-light-600 active:border-light-500 active:bg-light-500'
           : variant === 'secondary'
             ? 'border-dark-600 bg-dark-500 text-light-600 hover:bg-dark-600'
             : 'text-light-500 hover:text-white',

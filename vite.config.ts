@@ -107,6 +107,12 @@ export default defineConfig({
     Unfonts({
       fontsource: {
         families: [
+          { name: 'Geist', variable: { wght: true }, fallback: { category: 'sans-serif' } },
+          {
+            name: 'Geist Mono',
+            variable: { wght: true },
+            fallback: { category: 'monospace' },
+          },
           { name: 'Exo 2', variable: { wght: true }, fallback: { category: 'sans-serif' } },
         ],
       },

@@ -32,9 +32,19 @@ const props = defineProps<{
   downloadName?: string
   resetKey?: string | null
   fields?: SignerField[]
+  /** Hand the toolbar's download to the parent (it opens its own dialog). */
+  interceptDownload?: boolean
+  /** Full-bleed viewer: page thumbnails on the left instead of a framed card. */
+  viewer?: boolean
+  closable?: boolean
 }>()
 
-const emit = defineEmits<{ mark: [mark: FieldMark]; loadFailed: [url: string] }>()
+const emit = defineEmits<{
+  mark: [mark: FieldMark]
+  loadFailed: [url: string]
+  downloadRequested: []
+  close: []
+}>()
 
 const PAGE_WIDTH = 520
 const MIN_ZOOM = 50
@@ -241,6 +251,7 @@ function print() {
 }
 
 async function download() {
+  if (props.interceptDownload) return emit('downloadRequested')
   if (!props.url || downloading.value) return
   downloading.value = true
   downloadError.value = null
@@ -282,10 +293,50 @@ function onPointerUp(event: PointerEvent) {
 
 <template>
   <section
-    class="flex min-w-0 flex-1 flex-col gap-6 overflow-hidden rounded-xl border border-dark-600 bg-dark-500 px-8 py-6"
+    class="flex min-w-0 flex-1 overflow-hidden"
+    :class="
+      viewer
+        ? 'flex-row bg-dark-400'
+        : 'flex-col gap-6 rounded-xl border border-dark-600 bg-dark-500 px-8 py-6'
+    "
     aria-label="Document preview"
   >
-    <header class="flex h-4.25 items-center justify-between">
+    <aside
+      v-if="viewer"
+      class="no-scrollbar flex w-50 shrink-0 flex-col items-center gap-4 overflow-y-auto border-r border-dark-600 px-5 py-5"
+      aria-label="Pages"
+    >
+      <button
+        v-if="closable"
+        type="button"
+        class="flex size-8 items-center justify-center self-start text-light-400 hover:text-white"
+        aria-label="Close"
+        @click="emit('close')"
+      >
+        ✕
+      </button>
+      <button
+        v-for="n in active ? pageCount : 0"
+        :key="n"
+        type="button"
+        class="flex w-full flex-col items-center gap-2 outline-none"
+        :aria-label="`Page ${n}`"
+        :aria-current="page === n ? 'page' : undefined"
+        @click="goToPage(n)"
+      >
+        <span
+          class="flex aspect-[3/4] w-full flex-col gap-1.5 rounded-sm border-2 bg-white p-3"
+          :class="page === n ? 'border-accent-500' : 'border-transparent'"
+          aria-hidden="true"
+        >
+          <span class="h-1 w-3/5 bg-light-600" />
+          <span class="h-1 w-4/5 bg-light-600" />
+          <span class="h-1 w-2/3 bg-light-600" />
+        </span>
+        <span class="text-xs text-light-400">{{ n }}</span>
+      </button>
+    </aside>
+    <header v-if="!viewer" class="flex h-4.25 items-center justify-between">
       <h2 class="text-sm font-bold text-light-400">{{ label }}</h2>
       <Transition
         enter-active-class="transition duration-200 ease-out"
@@ -395,7 +446,7 @@ function onPointerUp(event: PointerEvent) {
       </Transition>
 
       <UiPageRail
-        v-if="active && pageCount > 1"
+        v-if="active && pageCount > 1 && !viewer"
         :model-value="page"
         :pages="pageCount"
         class="absolute top-1/2 right-4 -translate-y-1/2"

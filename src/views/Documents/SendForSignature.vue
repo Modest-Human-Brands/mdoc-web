@@ -128,17 +128,20 @@ async function send() {
 </script>
 
 <template>
-  <div class="flex h-full min-h-0 gap-3 bg-dark-400 p-3 text-white">
+  <div class="flex h-full min-h-0 bg-dark-400 text-white">
     <PreviewPanel
       :label="detail?.name ?? 'Document'"
       :url="pdfUrl ?? null"
       :loading="detail === null && loadError === null"
       :error="loadError"
       :reset-key="id"
+      viewer
+      closable
+      @close="router.push(`/documents/${id}`)"
     />
 
     <aside
-      class="flex w-105 shrink-0 flex-col gap-5 overflow-y-auto px-4 py-4"
+      class="flex w-105 shrink-0 flex-col gap-5 overflow-y-auto border-l border-dark-600 px-6 py-6"
       aria-label="Send for signature"
     >
       <div class="flex flex-col gap-1">

@@ -12,7 +12,7 @@ describe('UiButton', () => {
     const wrapper = mount(UiButton, { slots: { default: 'Continue' } })
 
     expect(wrapper.text()).toBe('Continue')
-    expect(wrapper.classes()).toContain('bg-accent-500')
+    expect(wrapper.classes()).toContain('bg-white')
   })
 
   it('looks disabled and blocks clicks when disabled', async () => {

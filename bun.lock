@@ -6,6 +6,8 @@
       "name": "vuetemplate",
       "dependencies": {
         "@dotenvx/dotenvx": "^2.34.2",
+        "@fontsource-variable/geist": "^5.3.0",
+        "@fontsource-variable/geist-mono": "^5.3.0",
         "@tato30/vue-pdf": "^2.2.0",
         "@tiptap/extensions": "^3.32.0",
         "@tiptap/pm": "^3.32.0",
@@ -189,6 +191,10 @@
     "@floating-ui/utils": ["@floating-ui/utils@0.2.12", "", {}, "sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww=="],
 
     "@fontsource-variable/exo-2": ["@fontsource-variable/exo-2@5.3.0", "", {}, "sha512-KgmRT6/E6y/ZwFcGnlFrFoKkizPcWtpDh1q1KlxLNA7NJWaSP4Y+nWGRlnRBiGZ8yybF8DhEWNldmDhOZkzMAQ=="],
+
+    "@fontsource-variable/geist": ["@fontsource-variable/geist@5.3.0", "", {}, "sha512-j0m+vLQuG5XAYoHtGCVu0spvlGreR3EzpECUVzkFmI1mTVnAO38l/NEPDCFgZ177JxzYJCLSmTQibIiYPilGrA=="],
+
+    "@fontsource-variable/geist-mono": ["@fontsource-variable/geist-mono@5.3.0", "", {}, "sha512-vBbuwDEo9AkrqADMXOrlAR3DFcJi4/JxeuU43FoiQERnNwsfXNnvxvReZG02cQKmyk4DZkZdBZX3oTDvy2zBAw=="],
 
     "@iconify-json/lucide": ["@iconify-json/lucide@1.2.142", "", { "dependencies": { "@iconify/types": "*" } }, "sha512-vEGX5X52/l77jRMcmxXk3PiEebldDUs8WFdM8X3Evq1S9p5F+o0VZhx8sqaQsmFEB9Ukp5ND5Q/0g2kQ/LF+rQ=="],
 

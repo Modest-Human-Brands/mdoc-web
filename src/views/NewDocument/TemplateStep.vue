@@ -8,6 +8,7 @@ import UiButton from '@/components/ui/UiButton.vue'
 import UiFilterChip from '@/components/ui/UiFilterChip.vue'
 import UiTemplateCard from '@/components/ui/UiTemplateCard.vue'
 import PreviewPanel from '@/components/wizard/PreviewPanel.vue'
+import TemplateSampleDialog from '@/components/wizard/TemplateSampleDialog.vue'
 import TemplateThumb from '@/components/wizard/TemplateThumb.vue'
 import WizardShell from '@/components/wizard/WizardShell.vue'
 import { useTemplates } from '@/composables/useTemplates'
@@ -18,6 +19,7 @@ const router = useRouter()
 const wizard = useWizardStore()
 const { templates, loading, error, reload } = useTemplates()
 
+const showSample = ref(false)
 const filter = ref<string>('All')
 const filters = computed(() => categoryFilters(templates.value))
 const visible = computed(() =>
@@ -99,6 +101,15 @@ async function next() {
         :url="sampleUrl"
         :download-name="selected ? `${selected.shortLabel} sample` : undefined"
         :reset-key="wizard.templateId"
+        intercept-download
+        @download-requested="showSample = true"
+      />
+      <TemplateSampleDialog
+        :open="showSample"
+        :template-id="selected?.id ?? null"
+        :name="selected?.shortLabel ?? 'Template'"
+        :sample-url="sampleUrl"
+        @close="showSample = false"
       />
     </template>
   </WizardShell>
