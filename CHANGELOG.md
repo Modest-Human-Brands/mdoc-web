@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.0.14
+
+[compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.13...v0.0.14)
+
+### 🚀 Enhancements
+
+- **api:** Enhance error handling for non-JSON responses in API requests ([f8ff39e](https://github.com/Modest-Human-Brands/mdoc-web/commit/f8ff39e))
+
+### ❤️ Contributors
+
+- Shirsendu Bairagi ([@shba007](https://github.com/shba007))
+
 ## v0.0.13
 
 [compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.12...v0.0.13)
