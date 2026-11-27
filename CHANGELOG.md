@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.0.16
+
+[compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.15...v0.0.16)
+
+### 🚀 Enhancements
+
+- **ui:** Add "No quotation" option to clear selection in QuotationPicker ([bba3091](https://github.com/Modest-Human-Brands/mdoc-web/commit/bba3091))
+
+### 💅 Refactors
+
+- Organization management in WebMCP tools ([658dcb9](https://github.com/Modest-Human-Brands/mdoc-web/commit/658dcb9))
+
+### ❤️ Contributors
+
+- Shirsendu Bairagi ([@shba007](https://github.com/shba007))
+
 ## v0.0.15
 
 [compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.14...v0.0.15)
