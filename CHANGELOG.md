@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.0.17
+
+[compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.16...v0.0.17)
+
+### 🩹 Fixes
+
+- **ui:** Apply break-words style to improve text wrapping in various components ([303dd3e](https://github.com/Modest-Human-Brands/mdoc-web/commit/303dd3e))
+
+### ❤️ Contributors
+
+- Shirsendu Bairagi ([@shba007](https://github.com/shba007))
+
 ## v0.0.16
 
 [compare changes](https://github.com/Modest-Human-Brands/mdoc-web/compare/v0.0.15...v0.0.16)
