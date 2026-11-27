@@ -1,152 +1,141 @@
 import { describe, expect, it } from 'vite-plus/test'
 
-import { DEFAULT_FONT, emptyOrganization, fontName, toOrganizationOverride } from '../organization'
+import {
+  emptyOrganization,
+  fontFamily,
+  fontName,
+  fromStoredOrganization,
+  STORED_LOGO_NAME,
+  toOrganizationPatch,
+  toPreviewOrganization,
+  type StoredOrganization,
+} from '../organization'
 
-function profile(changes: Partial<ReturnType<typeof emptyOrganization>> = {}) {
-  return { ...emptyOrganization(), ...changes }
+const stored: StoredOrganization = {
+  id: 'zzz',
+  name: 'ZZZ Studio',
+  contactEmail: 'a@zzz.in',
+  foundedYear: 2019,
+  accountDetails: { accountName: 'ZZZ', accountNumber: 123456789012 },
+  branding: {
+    logo: 'https://zzz.example/logo.png',
+    color: { primary: '#262626', accent: '#cd2d2d' },
+    font: 'PlayfairDisplay',
+    qr: { eyeShape: 'leaf', target: 'upi' },
+  },
+  socials: { instagram: 'https://instagram.com/zzz', mastodon: 'https://m.example/zzz' },
 }
 
-describe('toOrganizationOverride', () => {
-  it('returns null for an untouched profile, so the preset id is used', () => {
-    expect(toOrganizationOverride(profile())).toBeNull()
+const edit = (changes: Partial<ReturnType<typeof emptyOrganization>>) =>
+  toOrganizationPatch(fromStoredOrganization(stored), {
+    ...fromStoredOrganization(stored),
+    ...changes,
   })
 
-  it('sends only what was set, carrying the preset id', () => {
-    const override = toOrganizationOverride(
-      profile({ name: ' ZZZ Test Studio ', gstin: '29ABCDE1234F1Z5', billingEmail: 'b@zzz.in' }),
-    )
-
-    expect(override).toEqual({
-      id: 'modest-human-brands',
-      name: 'ZZZ Test Studio',
-      gstin: '29ABCDE1234F1Z5',
-      billingEmail: 'b@zzz.in',
+describe('fromStoredOrganization', () => {
+  it('fills the form from the Notion record', () => {
+    expect(fromStoredOrganization(stored)).toMatchObject({
+      id: 'zzz',
+      name: 'ZZZ Studio',
+      legalName: '',
+      foundedYear: '2019',
+      bank: { accountName: 'ZZZ', accountNumber: '123456789012', ifscCode: '' },
+      logo: { name: STORED_LOGO_NAME, dataUrl: 'https://zzz.example/logo.png' },
+      font: 'Playfair Display',
+      qr: { eyeShape: 'leaf' },
+      socials: { instagram: 'https://instagram.com/zzz', youtube: '' },
     })
   })
 
-  it('leaves default colours and entity out so the preset keeps its own', () => {
-    const override = toOrganizationOverride(
-      profile({ name: 'X', primary: '#111827', accent: '#5945ea' }),
-    )
+  it('turns stored font names back into families', () => {
+    expect(['Exo2', 'DMSans', 'Oxanium', 'OpenSans'].map(fontFamily)).toEqual([
+      'Exo 2',
+      'DM Sans',
+      'Oxanium',
+      'Open Sans',
+    ])
+    expect(fontName('Playfair Display')).toBe('PlayfairDisplay')
+  })
+})
 
-    expect(override).not.toHaveProperty('branding')
-    expect(override).not.toHaveProperty('entityType')
+describe('toOrganizationPatch', () => {
+  it('is empty for an untouched record, so nothing is rewritten', () => {
+    expect(edit({})).toEqual({})
   })
 
-  it('sends changed colours normalised, and a changed entity type', () => {
-    const override = toOrganizationOverride(
-      profile({ primary: '#abc', accent: '#0E7490', entityType: 'Private Limited' }),
-    )
+  it('ignores differences that would store the same value', () => {
+    expect(edit({ name: ' ZZZ Studio ', accent: '#CD2D2D', font: 'PlayfairDisplay' })).toEqual({})
+  })
 
-    expect(override).toMatchObject({
+  it('sends only the changed fields', () => {
+    expect(edit({ gstin: '29ABCDE1234F1Z5', entityType: 'Private Limited' })).toEqual({
+      gstin: '29ABCDE1234F1Z5',
       entityType: 'Private Limited',
-      branding: { color: { primary: '#AABBCC', accent: '#0E7490' } },
+    })
+  })
+
+  it('clears fields with an empty string or null', () => {
+    expect(edit({ contactEmail: '', foundedYear: '', logo: null })).toEqual({
+      contactEmail: '',
+      foundedYear: null,
+      branding: { logo: '' },
+    })
+  })
+
+  it('sends changed bank keys, keeping the account number as typed', () => {
+    const base = fromStoredOrganization(stored)
+    expect(
+      edit({ bank: { ...base.bank, accountNumber: '0012 3456', upiId: 'zzz@icici' } }),
+    ).toEqual({ accountDetails: { accountNumber: '00123456', upiId: 'zzz@icici' } })
+  })
+
+  it('sends changed branding, leaving other QR and social keys alone', () => {
+    const base = fromStoredOrganization(stored)
+    expect(
+      edit({
+        primary: '#abc',
+        font: 'Open Sans',
+        qr: { ...base.qr, logo: false },
+        logo: { name: 'new.png', dataUrl: 'data:image/png;base64,AAAA' },
+        socials: { ...base.socials, instagram: '' },
+      }),
+    ).toEqual({
+      branding: {
+        logo: 'data:image/png;base64,AAAA',
+        color: { primary: '#AABBCC' },
+        font: 'OpenSans',
+        qr: { logo: false },
+      },
+      socials: { instagram: '' },
     })
   })
 
   it('never sends an invalid colour', () => {
-    const override = toOrganizationOverride(profile({ name: 'X', primary: 'notacolor' }))
-
-    expect(override).not.toHaveProperty('branding')
-  })
-
-  it('maps bank details, with the account number as a number', () => {
-    const override = toOrganizationOverride(
-      profile({
-        bank: {
-          accountName: 'ZZZ',
-          accountNumber: '1234 5678 9012',
-          bankName: 'ICICI',
-          ifscCode: '',
-          upiId: 'zzz@icici',
-        },
-      }),
-    )
-
-    expect(override).toMatchObject({
-      accountDetails: {
-        accountName: 'ZZZ',
-        bankName: 'ICICI',
-        accountNumber: 123456789012,
-        upiId: 'zzz@icici',
-      },
-    })
-    expect(override?.accountDetails).not.toHaveProperty('ifscCode')
-  })
-
-  it('sends only non-default QR style options under branding.qr', () => {
-    expect(toOrganizationOverride(profile({ name: 'X' }))).not.toHaveProperty('branding')
-    const override = toOrganizationOverride(
-      profile({
-        name: 'X',
-        qr: { color: 'monochrome', eyeShape: 'rounded', eyeColor: 'brand', logo: false },
-      }),
-    )
-    expect(override).toMatchObject({ branding: { qr: { color: 'monochrome', logo: false } } })
-    const branding = override?.branding as { qr: object }
-    expect(branding.qr).not.toHaveProperty('eyeShape')
-  })
-
-  it('sends the logo data URL under branding', () => {
-    const override = toOrganizationOverride(
-      profile({ logo: { name: 'logo.png', dataUrl: 'data:image/png;base64,AAAA' } }),
-    )
-
-    expect(override).toMatchObject({ branding: { logo: 'data:image/png;base64,AAAA' } })
-  })
-
-  it('sends the font name the server stores: the family without spaces', () => {
-    expect(toOrganizationOverride(profile({ font: 'Open Sans' }))).toEqual({
-      id: 'modest-human-brands',
-      branding: { font: 'OpenSans' },
-    })
-    expect(fontName('Playfair Display')).toBe('PlayfairDisplay')
-  })
-
-  it('sends nothing for the default font', () => {
-    expect(toOrganizationOverride(profile({ font: DEFAULT_FONT }))).toBeNull()
+    expect(edit({ primary: 'notacolor' })).toEqual({})
   })
 })
 
-describe('toOrganizationOverride (profile details)', () => {
-  it('sends address, contact channels, founding year and the relationship once set', () => {
-    const override = toOrganizationOverride(
-      profile({
-        address: ' 99 Test Road, Pune ',
-        website: 'https://zzz.example',
-        whatsapp: '+911234567890',
-        foundedYear: '2019',
-        tradeRelationship: 'Trading As',
-      }),
-    )
-
-    expect(override).toEqual({
-      id: 'modest-human-brands',
-      address: '99 Test Road, Pune',
-      website: 'https://zzz.example',
-      whatsapp: '+911234567890',
+describe('toPreviewOrganization', () => {
+  it('carries the whole form in the shape templates render', () => {
+    expect(toPreviewOrganization(fromStoredOrganization(stored))).toMatchObject({
+      id: 'zzz',
+      name: 'ZZZ Studio',
+      contactEmail: 'a@zzz.in',
       foundedYear: 2019,
-      tradeRelationship: 'Trading As',
+      accountDetails: { accountName: 'ZZZ', accountNumber: '123456789012' },
+      branding: {
+        logo: 'https://zzz.example/logo.png',
+        color: { primary: '#262626', accent: '#CD2D2D' },
+        font: 'PlayfairDisplay',
+      },
     })
   })
 
-  it('sends only the socials that have a link', () => {
-    const base = emptyOrganization()
-    const override = toOrganizationOverride({
-      ...base,
-      socials: { ...base.socials, instagram: 'https://instagram.com/zzz' },
-    })
+  it('leaves blank fields out and falls back to valid colours', () => {
+    const preview = toPreviewOrganization({ ...emptyOrganization(), primary: 'nope' })
 
-    expect(override).toEqual({
-      id: 'modest-human-brands',
-      socials: { instagram: 'https://instagram.com/zzz' },
-    })
-  })
-
-  it('leaves the default relationship and a blank year out', () => {
-    expect(toOrganizationOverride(profile({ name: 'X' }))).toEqual({
-      id: 'modest-human-brands',
-      name: 'X',
-    })
+    expect(preview).not.toHaveProperty('accountDetails')
+    expect(preview).not.toHaveProperty('contactEmail')
+    expect(preview).toMatchObject({ branding: { color: { primary: '#111827' }, font: 'Exo2' } })
   })
 })

@@ -11,7 +11,7 @@ describe('board', () => {
     expect(boardColumn('Void')).toBe('Void')
   })
 
-  it('always lists the six stages and adds Void only when needed', () => {
+  it('always lists the five stages and adds Void only when needed', () => {
     const empty = groupByColumn([])
     expect(empty.map((g) => g.column)).toEqual([
       'Draft',
@@ -19,7 +19,6 @@ describe('board', () => {
       'Sent',
       'Partially Signed',
       'Signed',
-      'Expired',
     ])
     const withVoid = groupByColumn([{ status: 'Void' }, { status: 'Ready' }])
     expect(withVoid[withVoid.length - 1]?.column).toBe('Void')

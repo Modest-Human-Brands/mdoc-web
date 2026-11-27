@@ -1,5 +1,7 @@
 import type { DocumentDetail, DocumentListItem, SignerQueueEntry } from '@/api'
 
+import { formatBytes } from './format'
+
 export const STATUS_FILTERS = ['All', 'Draft', 'Ready', 'Delivered', 'Void'] as const
 export type StatusFilter = (typeof STATUS_FILTERS)[number]
 
@@ -12,6 +14,17 @@ export function formatDay(iso: string | undefined): string {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return ''
   return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
+/** "PDF · 7 Oct 2026 · 1 page · 25.8 KB"; the page count is left out until the PDF is read. */
+export function documentMeta(
+  detail: Pick<DocumentDetail, 'createdAt' | 'sizeBytes'>,
+  pages: number,
+): string {
+  const count = pages > 0 ? `${pages} ${pages === 1 ? 'page' : 'pages'}` : ''
+  return ['PDF', formatDay(detail.createdAt), count, formatBytes(detail.sizeBytes ?? -1)]
+    .filter(Boolean)
+    .join(' · ')
 }
 
 export function pageRange(offset: number, shown: number, total: number): string {
@@ -58,6 +71,7 @@ export function signersOf(detail: Pick<DocumentDetail, 'routingQueue'>): SignerQ
       email: typeof entry.email === 'string' ? entry.email : '',
       role: typeof entry.role === 'string' ? entry.role : 'Signer',
       status: typeof entry.status === 'string' ? entry.status : 'PENDING',
+      ...(typeof entry.signedAt === 'string' ? { signedAt: entry.signedAt } : {}),
     }))
     .sort((a, b) => a.order - b.order)
 }
@@ -74,9 +88,28 @@ export function signerCaption(
   if (signer.status === 'SIGNED') return signer.role
   if (signer.status === 'DECLINED') return 'Declined'
   if (signer.status === 'CANCELLED') return 'Cancelled'
-  if (next) return 'Next'
+  if (next) return 'Next to sign'
   return previous ? `Waiting for ${previous.name || previous.email}` : 'Waiting'
 }
+
+export function signerTag(signer: Pick<SignerQueueEntry, 'status'>, next: boolean): string {
+  if (signer.status === 'SIGNED') return 'Signed'
+  if (signer.status === 'DECLINED') return 'Declined'
+  if (signer.status === 'CANCELLED') return 'Cancelled'
+  return next ? 'Next' : 'Waiting'
+}
+
+/** The backend calls it "Void"; screens say what happened to the document. */
+export function statusLabel(status: string): string {
+  return status === 'Void' ? 'Voided' : status
+}
+
+export function userNameOf(user: unknown): string {
+  if (typeof user !== 'object' || user === null || !('name' in user)) return ''
+  return typeof user.name === 'string' ? user.name.trim() : ''
+}
+
+const NOT_SENT = ['Plan', 'Draft', 'Ready']
 
 export interface ActivityEntry {
   title: string
@@ -84,39 +117,46 @@ export interface ActivityEntry {
   at: string
 }
 
+/** Oldest first. An entry without a date has not happened yet, so it goes last. */
 export function activityOf(detail: DocumentDetail, signers: SignerQueueEntry[]): ActivityEntry[] {
   const entries: ActivityEntry[] = []
-  if (detail.createdAt)
-    entries.push({ title: 'Document created', detail: detail.name, at: detail.createdAt })
-  if (detail.updatedAt && detail.updatedAt !== detail.createdAt) {
+  if (detail.createdAt) {
+    const author = userNameOf(detail.user)
+    entries.push({
+      title: 'Document created',
+      detail: author ? `Created by ${author}` : detail.name,
+      at: detail.createdAt,
+    })
+  }
+  if (isVoid(detail.status)) {
+    entries.push({ title: 'Document voided', detail: '', at: detail.updatedAt ?? '' })
+  } else if (detail.updatedAt && detail.updatedAt !== detail.createdAt) {
     entries.push({
       title: `Status: ${detail.status}`,
       detail: 'Last updated',
       at: detail.updatedAt,
     })
   }
-  if (signers.length > 0) {
+  if (signers.length > 0 && !isVoid(detail.status)) {
     const signed = signedCount(signers)
     const everyone = signed === signers.length
-    const none = signed === 0
+    const unsent = signed === 0 && NOT_SENT.includes(detail.status)
+    const queued = `${signers.length} ${signers.length === 1 ? 'signer' : 'signers'} queued`
     entries.push({
-      title: everyone ? 'Everyone signed' : none ? 'Not signed yet' : 'Signing in progress',
-      detail: everyone
-        ? `${signed} of ${signers.length} signed`
-        : `${signers.length} ${signers.length === 1 ? 'signer' : 'signers'} queued`,
-      at: detail.updatedAt ?? detail.createdAt ?? '',
+      title: everyone
+        ? 'Everyone signed'
+        : unsent
+          ? 'Not sent yet'
+          : signed === 0
+            ? 'Not signed yet'
+            : 'Signing in progress',
+      detail: everyone ? `${signed} of ${signers.length} signed` : queued,
+      at: unsent ? '' : (detail.updatedAt ?? detail.createdAt ?? ''),
     })
   }
-  return entries.sort((a, b) => b.at.localeCompare(a.at))
+  return entries.sort((a, b) => (a.at || '\uffff').localeCompare(b.at || '\uffff'))
 }
-export const BOARD_COLUMNS = [
-  'Draft',
-  'Ready',
-  'Sent',
-  'Partially Signed',
-  'Signed',
-  'Expired',
-] as const
+export const BOARD_COLUMNS = ['Draft', 'Ready', 'Sent', 'Partially Signed', 'Signed'] as const
 export type BoardColumn = (typeof BOARD_COLUMNS)[number] | 'Void'
 
 /** Backend statuses without a column of their own fall into the nearest stage. */
@@ -132,8 +172,6 @@ export function boardColumn(status: string): BoardColumn {
     case 'Completed':
     case 'Signed':
       return 'Signed'
-    case 'Expired':
-      return 'Expired'
     case 'Void':
       return 'Void'
     default:

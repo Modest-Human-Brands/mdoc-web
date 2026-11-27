@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import IconPdf from '~icons/lucide/file-text'
 import { useClipboard, useObjectUrl } from '@vueuse/core'
 import { NotArrayField, NotField, NotForm, useNotForm } from 'notform'
 import { computed, ref, shallowRef, watch } from 'vue'
@@ -10,8 +11,8 @@ import UiButton from '@/components/ui/UiButton.vue'
 import UiTextField from '@/components/ui/UiTextField.vue'
 import PreviewPanel from '@/components/wizard/PreviewPanel.vue'
 import { errorMessage } from '@/composables/useTemplates'
+import { formatDay, initialOf } from '@/domain/documents'
 import { formatBytes } from '@/domain/format'
-import { loadOrganization } from '@/domain/organization'
 import {
   emptySigner,
   envelopeFrom,
@@ -23,8 +24,10 @@ import {
   type SignerRow,
 } from '@/domain/signers'
 import { signerSlots, type SignerSlot } from '@/domain/signing'
+import { useWizardStore } from '@/stores/wizard'
 
 const route = useRoute()
+const wizard = useWizardStore()
 const router = useRouter()
 const id = computed(() => String(route.params.id))
 
@@ -35,7 +38,9 @@ const loadError = ref<string | null>(null)
 const sendError = ref<string | null>(null)
 const sendIssues = ref<string[]>([])
 const sending = ref(false)
-const link = ref<string | null>(null)
+/** Set once the envelope is sent and the first signer's link exists. */
+const sent = ref<{ link: string; signers: SignerRow[]; expiresAt: string } | null>(null)
+const sentTo = computed(() => sent.value?.signers[0])
 const slots = ref<SignerSlot[] | null>(null)
 const fixed = computed(() => slots.value !== null && slots.value.length > 0)
 const unsignable = computed(() => slots.value !== null && slots.value.length === 0)
@@ -45,7 +50,7 @@ const form = useNotForm({
   initialValues: { signers: [emptySigner()], expiresInDays: '7' },
 })
 
-const { copy, copied } = useClipboard({ copiedDuring: 2000 })
+const { copy, copied } = useClipboard({ copiedDuring: 2000, legacy: true })
 
 function recipientOf(raw: Record<string, unknown> | null): Partial<SignerRow> | null {
   const sources = [raw, raw?.data, raw?.variables]
@@ -63,7 +68,7 @@ function recipientOf(raw: Record<string, unknown> | null): Partial<SignerRow> | 
 
 function initialSigners(loaded: DocumentDetail, slotList: SignerSlot[] | null): SignerRow[] {
   const recipient = recipientOf(loaded.rawData)
-  const organisation = loadOrganization()
+  const organisation = wizard.organization
   const hasOrganisation = organisation.name.trim() !== '' && organisation.contactEmail.trim() !== ''
   if (slotList === null) {
     const rows: SignerRow[] = []
@@ -88,6 +93,7 @@ async function load() {
     const [loaded, blob] = await Promise.all([
       documentsApi.get(id.value),
       documentsApi.content(id.value),
+      wizard.ensureOrganization(),
     ])
     detail.value = loaded
     pdf.value = blob
@@ -101,7 +107,14 @@ async function load() {
   }
 }
 
-watch(id, load, { immediate: true })
+watch(
+  id,
+  () => {
+    sent.value = null
+    void load()
+  },
+  { immediate: true },
+)
 
 async function send() {
   sendError.value = null
@@ -111,13 +124,19 @@ async function send() {
   sending.value = true
   try {
     await signingApi.sendEnvelope(id.value, envelopeFrom(form.values.signers))
-    const first = form.values.signers[0]
+    const signers = form.values.signers.map((signer) => ({ ...signer }))
+    const first = signers[0]
     if (!first) return
+    const expiresAt = expiryIso(Number(form.values.expiresInDays))
     const session = await signingApi.createSession(id.value, {
       signerEmail: first.email.trim(),
-      expiresIn: expiryIso(Number(form.values.expiresInDays)),
+      expiresIn: expiresAt,
     })
-    link.value = signingLink(window.location.origin, id.value, session.sessionToken)
+    sent.value = {
+      link: signingLink(window.location.origin, id.value, session.sessionToken),
+      signers,
+      expiresAt: session.expiresAt ?? expiresAt,
+    }
   } catch (e) {
     sendError.value = errorMessage(e)
     sendIssues.value = e instanceof ApiError ? e.fields.map((field) => field.message) : []
@@ -145,55 +164,97 @@ async function send() {
       aria-label="Send for signature"
     >
       <div class="flex flex-col gap-1">
-        <h1 class="text-xl font-bold tracking-tight">Send for signature</h1>
-        <p class="text-sm text-light-400">
-          Choose who signs and in what order. Each signer gets a private link; later signers unlock
-          after earlier ones sign.
+        <h1 class="text-xl font-semi-bold tracking-tight">
+          {{ sent ? 'Sent for signature' : 'Send for signature' }}
+        </h1>
+        <p class="text-sm text-light-500">
+          {{
+            sentTo
+              ? `Share the private link with ${sentTo.name.trim()} to collect the first signature.`
+              : 'Choose who signs and in what order. Each signer gets a private link; later signers unlock after earlier ones sign.'
+          }}
         </p>
       </div>
 
-      <template v-if="link">
-        <div class="flex flex-col gap-3 rounded-lg border border-dark-600 bg-dark-500 p-4">
-          <p class="text-sm font-semi-bold">Sent. Share the first signing link.</p>
-          <div class="flex items-center gap-2">
+      <div
+        v-if="detail"
+        class="flex shrink-0 items-center gap-3 rounded-xl border border-dark-600 bg-dark-500 p-3"
+      >
+        <span
+          class="flex size-10 shrink-0 items-center justify-center rounded-md bg-overlay"
+          aria-hidden="true"
+        >
+          <IconPdf class="size-5" />
+        </span>
+        <span class="flex min-w-0 flex-col">
+          <span class="truncate text-sm font-semi-bold">{{ detail.name }}.pdf</span>
+          <span class="text-xs text-light-500">A4 · {{ formatBytes(detail.sizeBytes ?? -1) }}</span>
+        </span>
+      </div>
+
+      <template v-if="sent && sentTo">
+        <ul class="flex flex-col gap-3" aria-label="Signers">
+          <li
+            v-for="(signer, index) in sent.signers"
+            :key="signer.email"
+            class="flex items-center gap-3"
+          >
+            <span
+              class="flex size-8 shrink-0 items-center justify-center rounded-full bg-overlay text-xs font-semi-bold"
+              aria-hidden="true"
+            >
+              {{ initialOf(signer.name) }}
+            </span>
+            <span class="flex min-w-0 flex-1 flex-col">
+              <span class="truncate text-sm font-semi-bold">{{ signer.name }}</span>
+              <span class="truncate text-xs text-light-500">
+                {{ [signer.email, signer.role].filter(Boolean).join(' · ') }}
+              </span>
+            </span>
+            <span class="shrink-0 rounded-full bg-overlay px-3 py-1 text-xs font-semi-bold">
+              {{ index === 0 ? 'Link ready' : 'Waiting' }}
+            </span>
+          </li>
+        </ul>
+        <p
+          class="rounded-md border border-success-600 bg-dark-500 px-4 py-3 text-xs break-words"
+          role="status"
+        >
+          Link for {{ sentTo.email.trim() }} · expires {{ formatDay(sent.expiresAt) }}
+        </p>
+        <div class="flex flex-col gap-2">
+          <p class="text-xs text-light-500">Signing link · {{ sentTo.name.trim() }}</p>
+          <div
+            class="flex items-center gap-2 rounded-md border border-dark-600 bg-dark-500 py-1 pr-1 pl-3"
+          >
             <input
-              :value="link"
+              :value="sent.link"
               readonly
               aria-label="Signing link"
-              class="h-9 min-w-0 flex-1 rounded-md border border-dark-600 bg-dark-400 px-3 text-xs text-light-500"
+              class="min-w-0 flex-1 bg-transparent text-sm text-light-600 outline-none"
+              @focus="($event.target as HTMLInputElement).select()"
             />
-            <UiButton variant="secondary" @click="copy(link)">{{
-              copied ? 'Copied' : 'Copy link'
-            }}</UiButton>
+            <UiButton variant="secondary" @click="copy(sent.link)">
+              {{ copied ? 'Copied' : 'Copy link' }}
+            </UiButton>
           </div>
-          <p class="text-xs text-light-400">
-            Links for the other signers are created when it is their turn.
+          <p class="text-xs text-light-500">
+            Share this link only with {{ sentTo.name.trim() }}.{{
+              sent.signers.length > 1
+                ? ' Links for the other signers are generated when it’s their turn.'
+                : ''
+            }}
           </p>
         </div>
-        <div class="mt-auto flex justify-end">
-          <UiButton @click="router.push(`/documents/${id}`)">Back to document</UiButton>
+        <div class="mt-auto flex justify-end gap-2">
+          <UiButton variant="ghost" @click="router.push(`/documents/${id}`)">
+            View document
+          </UiButton>
+          <UiButton @click="router.push('/documents')">Done</UiButton>
         </div>
       </template>
 
       <template v-else>
-        <div
-          v-if="detail"
-          class="flex items-center gap-3 rounded-lg border border-dark-600 bg-dark-500 p-3"
-        >
-          <span
-            class="flex size-10 shrink-0 items-center justify-center rounded-md bg-dark-600 text-2xs font-bold tracking-wide text-light-600"
-            aria-hidden="true"
-          >
-            PDF
-          </span>
-          <span class="flex min-w-0 flex-col">
-            <span class="truncate text-sm font-semi-bold">{{ detail.name }}.pdf</span>
-            <span class="text-xs text-light-400"
-              >A4 · {{ formatBytes(detail.sizeBytes ?? -1) }}</span
-            >
-          </span>
-        </div>
-
         <p
           v-if="unsignable"
           class="rounded-lg border border-dark-600 bg-dark-500 p-4 text-sm text-light-500"

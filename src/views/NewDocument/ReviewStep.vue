@@ -82,14 +82,10 @@ const signable = computed(
       :aria-label="section.title"
     >
       <h3 class="text-xs tracking-[0.06em] text-light-400 uppercase">{{ section.title }}</h3>
-      <dl class="flex flex-col rounded-lg border border-dark-600 bg-dark-500">
-        <div
-          v-for="row in section.rows"
-          :key="row.label"
-          class="flex gap-4 border-b border-dark-600 px-3 py-2.5 last:border-b-0"
-        >
-          <dt class="w-36 shrink-0 text-sm text-light-400">{{ row.label }}</dt>
-          <dd class="min-w-0 flex-1 text-sm break-words whitespace-pre-wrap text-white">
+      <dl class="flex flex-col rounded-xl border border-dark-600 bg-dark-500 px-4 py-3">
+        <div v-for="row in section.rows" :key="row.label" class="flex gap-2 text-xs">
+          <dt class="w-24 shrink-0 text-light-500">{{ row.label }}</dt>
+          <dd class="min-w-0 flex-1 break-words whitespace-pre-wrap text-white">
             {{ row.value }}
           </dd>
         </div>

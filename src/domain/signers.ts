@@ -65,6 +65,18 @@ export function signingLink(origin: string, documentId: string, token: string): 
   return `${origin.replace(/\/+$/, '')}/s/${encodeURIComponent(documentId)}/${encodeURIComponent(token)}`
 }
 
+/** The session token is a JWT; its `exp` says when the link stops working. Not a validity check. */
+export function linkExpiry(token: string): Date | null {
+  try {
+    const payload = token.split('.')[1] ?? ''
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const { exp } = JSON.parse(atob(base64)) as { exp?: unknown }
+    return typeof exp === 'number' && Number.isFinite(exp) ? new Date(exp * 1000) : null
+  } catch {
+    return null
+  }
+}
+
 export function parseSigningLink(params: {
   id?: unknown
   token?: unknown

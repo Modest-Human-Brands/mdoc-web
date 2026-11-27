@@ -44,6 +44,7 @@ const emit = defineEmits<{
   loadFailed: [url: string]
   downloadRequested: []
   close: []
+  pageCount: [count: number]
 }>()
 
 const PAGE_WIDTH = 520
@@ -190,6 +191,7 @@ function onPdfFailed(layer: Layer, message: string) {
 
 function onPages(count: number) {
   pageCount.value = count
+  emit('pageCount', count)
   if (page.value > count) page.value = count
 }
 
@@ -232,6 +234,16 @@ function goToPage(target: number) {
   const offset = el.getBoundingClientRect().top - container.getBoundingClientRect().top
   container.scrollTo({ top: container.scrollTop + offset - STAGE_PADDING / 2, behavior: 'smooth' })
 }
+
+function focusMark(key: string) {
+  const marks = stage.value?.querySelectorAll<HTMLElement>('[data-newest] [data-mark]') ?? []
+  const target = [...marks].find((mark) => mark.dataset.mark === key)
+  if (!target) return
+  target.focus({ preventScroll: true })
+  target.scrollIntoView({ block: 'center', behavior: 'smooth' })
+}
+
+defineExpose({ focusMark })
 
 let scrolledToMarks = ''
 
@@ -306,6 +318,7 @@ function onPointerUp(event: PointerEvent) {
       class="no-scrollbar flex w-50 shrink-0 flex-col items-center gap-4 overflow-y-auto border-r border-dark-600 px-5 py-5"
       aria-label="Pages"
     >
+      <slot name="rail-top" />
       <button
         v-if="closable"
         type="button"
@@ -452,6 +465,10 @@ function onPointerUp(event: PointerEvent) {
         class="absolute top-1/2 right-4 -translate-y-1/2"
         @update:model-value="goToPage"
       />
+
+      <div v-if="active && $slots.overlay" class="absolute bottom-16 left-1/2 -translate-x-1/2">
+        <slot name="overlay" />
+      </div>
 
       <UiDocToolbar
         v-if="active"

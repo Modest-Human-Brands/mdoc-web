@@ -149,10 +149,12 @@ export interface DocumentListItem {
   mimeType: string
   sizeBytes: number | null
   status: DocumentStatus
-  contact?: { index: number; name: string }
+  contact?: { index: number; name: string; avatar?: string }
   project?: ProjectRef
   organizationId?: string | null
   previewUrl: string
+  /** Public page that shows the PDF without an API key. */
+  shareUrl?: string
   createdAt?: string
   updatedAt?: string
 }
@@ -187,6 +189,21 @@ export interface DocumentDetail {
   createdAt?: string
   updatedAt?: string
   rawData: Record<string, unknown> | null
+  /** Quote it when saving edits; the server answers 409 if the document changed since. */
+  revision: string
+}
+
+/** The template and owner of a document never change, so neither can be sent. */
+export interface EditDocumentRequest {
+  revision: string
+  name?: string
+  data: Record<string, unknown>
+  contactId?: string
+  projectId?: string | null
+}
+
+export interface EditDocumentResponse extends CreateDocumentResponse {
+  revision: string
 }
 
 export interface UpdateDocumentRequest {
@@ -255,9 +272,21 @@ export interface SignResponse {
   nextSigner?: SignerState | null
 }
 
+export interface SignatureCheck {
+  /** Common name on the signing certificate. */
+  signer?: string
+  issuer?: string
+  valid: boolean
+  /** False when bytes were added to the file after this signature. */
+  coversToEnd: boolean
+  certificateExpired?: boolean
+  notAfter?: string
+}
+
 export interface VerifySignatureResponse {
-  isIntact?: boolean | Record<string, unknown>
-  signer: string
+  isIntact: boolean
+  signer?: string
+  signatures?: SignatureCheck[]
   message: string
 }
 
@@ -288,6 +317,7 @@ export interface SignerQueueEntry {
   email: string
   role: string
   status: SignerStatus
+  signedAt?: string
 }
 
 export interface EnvelopeRequest {

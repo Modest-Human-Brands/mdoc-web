@@ -14,6 +14,8 @@ import {
   signedCount,
   signerCaption,
   signersOf,
+  signerTag,
+  statusLabel,
 } from '../documents'
 
 const detail = {
@@ -78,16 +80,46 @@ describe('documents helpers', () => {
     const [rhea, arjun] = signersOf(detail)
 
     expect(signerCaption(rhea!, undefined, false)).toBe('Client')
-    expect(signerCaption(arjun!, rhea, true)).toBe('Next')
+    expect(signerCaption(arjun!, rhea, true)).toBe('Next to sign')
     expect(signerCaption(arjun!, rhea, false)).toBe('Waiting for Rhea')
   })
 
-  it('derives activity, newest first, from the document record', () => {
+  it('derives activity, oldest first, from the document record', () => {
     const entries = activityOf(detail, signersOf(detail))
 
-    expect(entries[0]!.at >= entries[entries.length - 1]!.at).toBe(true)
+    expect(entries[0]!.at <= entries[entries.length - 1]!.at).toBe(true)
     expect(entries.map((entry) => entry.title)).toContain('Document created')
     expect(entries.map((entry) => entry.title)).toContain('Signing in progress')
+  })
+
+  it('names the author, and lists what has not happened yet last', () => {
+    const draft = { ...detail, status: 'Draft', user: { name: 'Ayesha Rao' } } as DocumentDetail
+    const queued = signersOf(detail).map((signer) => ({ ...signer, status: 'PENDING' as const }))
+    const entries = activityOf(draft, queued)
+
+    expect(entries[0]!.detail).toBe('Created by Ayesha Rao')
+    expect(entries[entries.length - 1]).toEqual({
+      title: 'Not sent yet',
+      detail: '2 signers queued',
+      at: '',
+    })
+  })
+
+  it('ends a voided document with the void, without signing progress', () => {
+    const titles = activityOf({ ...detail, status: 'Void' }, signersOf(detail)).map(
+      (entry) => entry.title,
+    )
+
+    expect(titles).toEqual(['Document created', 'Document voided'])
+  })
+
+  it('tags each signer', () => {
+    expect(signerTag({ status: 'SIGNED' }, false)).toBe('Signed')
+    expect(signerTag({ status: 'CANCELLED' }, false)).toBe('Cancelled')
+    expect(signerTag({ status: 'PENDING' }, true)).toBe('Next')
+    expect(signerTag({ status: 'PENDING' }, false)).toBe('Waiting')
+    expect(statusLabel('Void')).toBe('Voided')
+    expect(statusLabel('Sent')).toBe('Sent')
   })
 
   it('reports completion once every signer has signed', () => {

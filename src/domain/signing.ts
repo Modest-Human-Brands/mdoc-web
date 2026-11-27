@@ -12,7 +12,14 @@ export interface FieldPlan {
   textFields: TextFieldPlan[]
 }
 
-export type SigningState = 'loading' | 'invalid' | 'landing' | 'signing' | 'signed' | 'already'
+export type SigningState =
+  | 'loading'
+  | 'invalid'
+  | 'waiting'
+  | 'landing'
+  | 'signing'
+  | 'signed'
+  | 'already'
 
 export function labelFromFieldId(id: string): string {
   const text = id
@@ -130,8 +137,48 @@ export function missingText(plan: FieldPlan, texts: Record<string, string>): str
     .map((field) => field.label)
 }
 
-export function stateFromSession(status: string): SigningState {
-  return status === 'SIGNED' ? 'already' : 'landing'
+export interface SessionTurn {
+  status: string
+  order: number
+}
+
+/** The earliest signer still holding things up, when signing happens in order. */
+export function signerAhead(
+  session: SessionTurn,
+  signers: readonly SignerQueueEntry[],
+  routingType: string | null,
+): SignerQueueEntry | undefined {
+  if (routingType !== 'SEQUENTIAL') return undefined
+  return signers.find((signer) => signer.status === 'PENDING' && signer.order < session.order)
+}
+
+export function stateFromSession(
+  session: SessionTurn,
+  signers: readonly SignerQueueEntry[] = [],
+  routingType: string | null = null,
+): SigningState {
+  if (session.status === 'SIGNED') return 'already'
+  return signerAhead(session, signers, routingType) ? 'waiting' : 'landing'
+}
+
+/** How many spots the signer has to sign; null when it depends on the length of the PDF. */
+export function signingPlaces(fields: readonly SignerField[]): number | null {
+  let places = 0
+  for (const field of fields) {
+    if (field.type !== 'SIGNATURE' && field.type !== 'INITIALS') continue
+    if (typeof field.pageIndex === 'string') return null
+    places += Array.isArray(field.pageIndex) ? field.pageIndex.length : 1
+  }
+  return places > 0 ? places : null
+}
+
+export function fieldKind(type: SignerField['type']): string {
+  return type.charAt(0) + type.slice(1).toLowerCase()
+}
+
+/** Reading order: by page, then from the top (PDF coordinates start at the bottom). */
+export function inReadingOrder(marks: readonly FieldMark[]): FieldMark[] {
+  return [...marks].sort((a, b) => a.page - b.page || b.y - a.y || a.x - b.x)
 }
 
 export function waitingOn(signers: readonly SignerQueueEntry[], currentEmail: string): number {

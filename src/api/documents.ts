@@ -1,7 +1,8 @@
 import { apiUrl, request, requestBlob } from './http'
-import { orgHeaders } from './organization'
 import type {
   DocumentDetail,
+  EditDocumentRequest,
+  EditDocumentResponse,
   NumberingResponse,
   DocumentList,
   DocumentListParams,
@@ -14,20 +15,11 @@ const docPath = (id: string) => `/document/${encodeURIComponent(id)}`
 
 export interface NumberingQuery {
   templateId: string
-  organizationId?: string
-  organizationName?: string
 }
 
 export const documentsApi = {
-  nextNumber: (query: NumberingQuery, signal?: AbortSignal) => {
-    const { organizationId, ...rest } = query
-    const preset = orgHeaders(organizationId)
-    return request<NumberingResponse>('/document/numbering/next', {
-      query: { ...rest, ...(organizationId && !preset ? { organizationId } : {}) },
-      headers: preset,
-      signal,
-    })
-  },
+  nextNumber: (query: NumberingQuery, signal?: AbortSignal) =>
+    request<NumberingResponse>('/document/numbering/next', { query: { ...query }, signal }),
 
   list: (params: DocumentListParams = {}, signal?: AbortSignal) =>
     request<DocumentList>('/document', { query: { ...params }, signal }),
@@ -36,6 +28,10 @@ export const documentsApi = {
 
   update: (id: string, body: UpdateDocumentRequest, signal?: AbortSignal) =>
     request<UpdateDocumentResponse>(docPath(id), { method: 'PATCH', body, signal }),
+
+  /** Replaces a Draft's form data and re-renders its PDF. */
+  edit: (id: string, body: EditDocumentRequest, signal?: AbortSignal) =>
+    request<EditDocumentResponse>(docPath(id), { method: 'PUT', body, signal }),
 
   content: (id: string, opts: { type?: 'image' } = {}, signal?: AbortSignal) =>
     requestBlob(`${docPath(id)}/content`, { query: opts, signal }),

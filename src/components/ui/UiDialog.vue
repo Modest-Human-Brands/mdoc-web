@@ -24,13 +24,13 @@ onMounted(sync)
 <template>
   <dialog
     ref="dialog"
-    class="m-auto w-full max-w-120 rounded-xl border border-dark-600 bg-dark-500 p-0 text-white backdrop:bg-black/60"
+    class="m-auto w-full max-w-120 rounded-2xl border border-dark-600 bg-dark-500 p-0 text-white backdrop:bg-black/60"
     :aria-label="title"
     @close="emit('close')"
     @click.self="emit('close')"
   >
     <div class="flex flex-col gap-4 p-6">
-      <h2 class="text-lg font-bold">{{ title }}</h2>
+      <h2 class="text-lg font-semi-bold">{{ title }}</h2>
       <slot />
     </div>
   </dialog>

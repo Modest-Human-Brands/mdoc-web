@@ -110,92 +110,200 @@ export function emptyOrganization(): OrganizationProfile {
   }
 }
 
-const KEY = 'mdoc.organization'
+/** The organisation as the API returns it from Notion. */
+export interface StoredOrganization {
+  id: string
+  name: string
+  contactEmail?: string
+  legalName?: string
+  entityType?: string
+  tradeRelationship?: string
+  gstin?: string
+  pan?: string
+  address?: string
+  foundedYear?: number
+  accountDetails?: Partial<Record<keyof OrganizationProfile['bank'], string | number>>
+  branding: {
+    logo?: string
+    qr?: Record<string, unknown>
+    color: { primary: string; accent: string }
+    font: string
+  }
+  website?: string
+  phone?: string
+  whatsapp?: string
+  billingEmail?: string
+  socials?: Record<string, string>
+}
 
-export function loadOrganization(): OrganizationProfile {
+export interface OrganizationRecord {
+  pageId: string
+  revision: string
+  organization: StoredOrganization
+}
+
+export const STORED_LOGO_NAME = 'Logo saved in Notion'
+
+/** Notion stores a font without spaces (`PlayfairDisplay`); the picker shows the family name. */
+export function fontFamily(name: string): string {
+  return name.replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2').replace(/([a-z])([A-Z0-9])/g, '$1 $2')
+}
+
+export function fromStoredOrganization(stored: StoredOrganization): OrganizationProfile {
   const base = emptyOrganization()
-  try {
-    const raw = localStorage.getItem(KEY)
-    if (!raw) return base
-    const saved = JSON.parse(raw) as Partial<OrganizationProfile>
-    return {
-      ...base,
-      ...saved,
-      bank: { ...base.bank, ...saved.bank },
-      qr: normalizeQrStyle(saved.qr),
-      socials: { ...base.socials, ...saved.socials },
-    }
-  } catch {
-    return base
+  const { branding, accountDetails, socials } = stored
+  const oneOf = <T extends string>(options: readonly T[], value: string | undefined, other: T) =>
+    options.find((option) => option === value) ?? other
+  const bank = { ...base.bank }
+  for (const key of Object.keys(bank) as (keyof typeof bank)[]) {
+    bank[key] = String(accountDetails?.[key] ?? '')
+  }
+  const links = { ...base.socials }
+  for (const key of SOCIAL_KEYS) links[key] = socials?.[key] ?? ''
+
+  return {
+    id: stored.id,
+    name: stored.name,
+    legalName: stored.legalName ?? '',
+    entityType: oneOf(ENTITY_TYPES, stored.entityType, base.entityType),
+    tradeRelationship: oneOf(TRADE_RELATIONSHIPS, stored.tradeRelationship, base.tradeRelationship),
+    address: stored.address ?? '',
+    foundedYear: stored.foundedYear === undefined ? '' : String(stored.foundedYear),
+    pan: stored.pan ?? '',
+    gstin: stored.gstin ?? '',
+    logo: branding.logo ? { name: STORED_LOGO_NAME, dataUrl: branding.logo } : null,
+    primary: branding.color.primary,
+    accent: branding.color.accent,
+    font: fontFamily(branding.font),
+    bank,
+    qr: normalizeQrStyle(branding.qr),
+    contactEmail: stored.contactEmail ?? '',
+    billingEmail: stored.billingEmail ?? '',
+    phone: stored.phone ?? '',
+    whatsapp: stored.whatsapp ?? '',
+    website: stored.website ?? '',
+    socials: links,
   }
 }
 
-export function saveOrganization(profile: OrganizationProfile): void {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(profile))
-  } catch {}
+const TEXT_FIELDS = [
+  'name',
+  'legalName',
+  'address',
+  'pan',
+  'gstin',
+  'contactEmail',
+  'billingEmail',
+  'phone',
+  'whatsapp',
+  'website',
+] as const
+
+function changedText<K extends string>(
+  keys: readonly K[],
+  before: Record<K, string>,
+  after: Record<K, string>,
+): Partial<Record<K, string>> {
+  const changes: Partial<Record<K, string>> = {}
+  for (const key of keys) {
+    if (after[key].trim() !== before[key].trim()) changes[key] = after[key].trim()
+  }
+  return changes
 }
 
-export function toOrganizationOverride(
-  profile: OrganizationProfile,
-): Record<string, unknown> | null {
-  const defaults = emptyOrganization()
-  const override: Record<string, unknown> = {}
+const yearOf = (input: string) => {
+  const year = Number.parseInt(input, 10)
+  return Number.isSafeInteger(year) ? year : null
+}
 
-  const text = (key: string, value: string) => {
-    const trimmed = value.trim()
-    if (trimmed !== '') override[key] = trimmed
-  }
-  text('name', profile.name)
-  text('legalName', profile.legalName)
-  text('pan', profile.pan)
-  text('gstin', profile.gstin)
-  text('contactEmail', profile.contactEmail)
-  text('billingEmail', profile.billingEmail)
-  text('phone', profile.phone)
-  text('whatsapp', profile.whatsapp)
-  text('website', profile.website)
-  text('address', profile.address)
-  if (profile.entityType !== defaults.entityType) override.entityType = profile.entityType
-  if (profile.tradeRelationship !== defaults.tradeRelationship) {
-    override.tradeRelationship = profile.tradeRelationship
-  }
-  const year = Number.parseInt(profile.foundedYear, 10)
-  if (profile.foundedYear.trim() !== '' && Number.isSafeInteger(year)) override.foundedYear = year
+/**
+ * Only what differs from the loaded record, so a save never rewrites a field nobody touched. An empty string (or
+ * `null`) clears a field in Notion.
+ */
+export function toOrganizationPatch(
+  before: OrganizationProfile,
+  after: OrganizationProfile,
+): Record<string, unknown> {
+  const patch: Record<string, unknown> = changedText(TEXT_FIELDS, before, after)
 
-  const socials: Record<string, string> = {}
-  for (const key of SOCIAL_KEYS) {
-    const link = profile.socials[key].trim()
-    if (link !== '') socials[key] = link
+  if (after.entityType !== before.entityType) patch.entityType = after.entityType
+  if (after.tradeRelationship !== before.tradeRelationship) {
+    patch.tradeRelationship = after.tradeRelationship
   }
-  if (Object.keys(socials).length > 0) override.socials = socials
+  if (yearOf(after.foundedYear) !== yearOf(before.foundedYear)) {
+    patch.foundedYear = yearOf(after.foundedYear)
+  }
 
-  const bank: Record<string, unknown> = {}
-  const { accountName, accountNumber, bankName, ifscCode, upiId } = profile.bank
-  if (accountName.trim()) bank.accountName = accountName.trim()
-  if (bankName.trim()) bank.bankName = bankName.trim()
-  if (ifscCode.trim()) bank.ifscCode = ifscCode.trim()
-  if (upiId?.trim()) bank.upiId = upiId.trim()
-  const digits = accountNumber.replace(/\D/g, '')
-  if (digits !== '' && Number.isSafeInteger(Number(digits))) bank.accountNumber = Number(digits)
-  if (Object.keys(bank).length > 0) override.accountDetails = bank
+  const bankKeys = Object.keys(after.bank) as (keyof OrganizationProfile['bank'])[]
+  const bank = changedText(bankKeys, before.bank, after.bank)
+  if (bank.accountNumber !== undefined) {
+    bank.accountNumber = bank.accountNumber.replace(/\s/g, '')
+  }
+  if (Object.keys(bank).length > 0) patch.accountDetails = bank
+
+  const socials = changedText(SOCIAL_KEYS, before.socials, after.socials)
+  if (Object.keys(socials).length > 0) patch.socials = socials
 
   const branding: Record<string, unknown> = {}
-  if (profile.logo) branding.logo = profile.logo.dataUrl
-  const primary = normalizeHex(profile.primary)
-  const accent = normalizeHex(profile.accent)
+  if ((after.logo?.dataUrl ?? '') !== (before.logo?.dataUrl ?? '')) {
+    branding.logo = after.logo?.dataUrl ?? ''
+  }
   const color: Record<string, string> = {}
-  if (primary && primary !== normalizeHex(defaults.primary)) color.primary = primary
-  if (accent && accent !== normalizeHex(defaults.accent)) color.accent = accent
+  for (const key of ['primary', 'accent'] as const) {
+    const next = normalizeHex(after[key])
+    if (next && next !== normalizeHex(before[key])) color[key] = next
+  }
   if (Object.keys(color).length > 0) branding.color = color
+  if (fontName(after.font.trim()) !== fontName(before.font.trim())) {
+    branding.font = fontName(after.font.trim())
+  }
   const qr: Record<string, unknown> = {}
   for (const key of Object.keys(defaultQrStyle) as (keyof QrStyle)[]) {
-    if (profile.qr[key] !== defaultQrStyle[key]) qr[key] = profile.qr[key]
+    if (after.qr[key] !== before.qr[key]) qr[key] = after.qr[key]
   }
   if (Object.keys(qr).length > 0) branding.qr = qr
-  const family = profile.font.trim()
-  if (family !== '' && family !== defaults.font) branding.font = fontName(family)
-  if (Object.keys(branding).length > 0) override.branding = branding
+  if (Object.keys(branding).length > 0) patch.branding = branding
 
-  return Object.keys(override).length > 0 ? { id: profile.id, ...override } : null
+  return patch
+}
+
+/** The whole form in the shape templates render, used to preview edits that are not saved yet. */
+export function toPreviewOrganization(profile: OrganizationProfile): Record<string, unknown> {
+  const defaults = emptyOrganization()
+  const preview: Record<string, unknown> = {
+    id: profile.id,
+    name: profile.name.trim(),
+    entityType: profile.entityType,
+    tradeRelationship: profile.tradeRelationship,
+  }
+
+  for (const key of TEXT_FIELDS) {
+    const value = profile[key].trim()
+    if (value !== '') preview[key] = value
+  }
+  const year = yearOf(profile.foundedYear)
+  if (year !== null) preview.foundedYear = year
+
+  const filled = (values: Record<string, string>) =>
+    Object.fromEntries(
+      Object.entries(values)
+        .map(([key, value]) => [key, value.trim()])
+        .filter(([, value]) => value !== ''),
+    )
+  const bank = filled(profile.bank)
+  if (Object.keys(bank).length > 0) preview.accountDetails = bank
+  const socials = filled(profile.socials)
+  if (Object.keys(socials).length > 0) preview.socials = socials
+
+  preview.branding = {
+    ...(profile.logo ? { logo: profile.logo.dataUrl } : {}),
+    color: {
+      primary: normalizeHex(profile.primary) ?? defaults.primary,
+      accent: normalizeHex(profile.accent) ?? defaults.accent,
+    },
+    qr: { ...profile.qr },
+    font: fontName(profile.font.trim() || defaults.font),
+  }
+
+  return preview
 }

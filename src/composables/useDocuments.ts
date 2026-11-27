@@ -15,7 +15,6 @@ export function useDocumentList(status: Ref<StatusFilter>, page: Ref<number>) {
   async function load() {
     const mine = ++ticket
     loading.value = true
-    error.value = null
     try {
       const response = await documentsApi.list({
         limit: PAGE_SIZE,
@@ -23,6 +22,8 @@ export function useDocumentList(status: Ref<StatusFilter>, page: Ref<number>) {
         status: status.value === 'All' ? undefined : status.value,
       })
       if (mine !== ticket) return
+      // Cleared only on success, so the outage banner stays put while it retries.
+      error.value = null
       items.value = response.results
       total.value = response.pagination.total
     } catch (e) {

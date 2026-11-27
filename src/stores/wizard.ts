@@ -1,4 +1,4 @@
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import { useDebounceFn, useStorage } from '@vueuse/core'
 import { useNotForm } from 'notform'
@@ -7,14 +7,17 @@ import {
   ApiError,
   documentsApi,
   fetchTemplateDetail,
+  organizationApi,
   templatesApi,
   type CreateDocumentResponse,
+  type DocumentDetail,
   type FieldError,
   type PreviewWarning,
   type TemplateDetail,
 } from '@/api'
 import { config } from '@/config'
 import { recipientPatch, type Client } from '@/domain/clients'
+import { keepUnlistedFields, toFormValues } from '@/domain/documentForm'
 import { buildFormSchema, emptyFormSchema, validateForm } from '@/domain/formSchema'
 import {
   computeTotals,
@@ -23,10 +26,12 @@ import {
   templateDefaults,
 } from '@/domain/invoice'
 import {
-  loadOrganization,
-  saveOrganization,
-  toOrganizationOverride,
+  emptyOrganization,
+  fromStoredOrganization,
+  toOrganizationPatch,
+  toPreviewOrganization,
   type OrganizationProfile,
+  type OrganizationRecord,
 } from '@/domain/organization'
 import { organizationFormSchema } from '@/domain/organizationForm'
 import {
@@ -64,6 +69,18 @@ interface Draft {
   values: Values
 }
 
+/** A saved Draft opened in the same form. Its template is fixed. */
+export interface Editing {
+  id: string
+  name: string
+  revision: string
+  saved: Values
+  /** Terms the saved document used that can no longer be chosen. */
+  droppedTerms: string[]
+  /** The form as opened, to tell whether anything was changed. */
+  opened: string
+}
+
 export const useWizardStore = defineStore('wizard', () => {
   const draft = useStorage<Partial<Draft>>(DRAFT_KEY, {}, undefined, {
     listenToStorageChanges: false,
@@ -83,13 +100,22 @@ export const useWizardStore = defineStore('wizard', () => {
     initialValues: saved?.values ?? {},
   })
   const values = form.values as Values
+  const editing = ref<Editing | null>(null)
 
   const organizationForm = useNotForm({
     schema: organizationFormSchema,
-    initialValues: loadOrganization(),
+    initialValues: emptyOrganization(),
   })
   const organization = organizationForm.values as OrganizationProfile
-  const organizationSaved = ref(true)
+  // Notion is the only store. These hold the record as last read, which edits are compared against.
+  const organizationBaseline = ref<OrganizationProfile>(emptyOrganization())
+  const organizationRevision = ref<string | null>(null)
+  const organizationStatus = ref<'idle' | 'loading' | 'saving' | 'ready' | 'error'>('idle')
+  const organizationError = ref<string | null>(null)
+  const organizationChanges = computed(() =>
+    toOrganizationPatch(organizationBaseline.value, organization),
+  )
+  const organizationSaved = computed(() => Object.keys(organizationChanges.value).length === 0)
   const savedIds = useStorage<Partial<OwnerIds>>(IDS_KEY, {}, undefined, {
     listenToStorageChanges: false,
   })
@@ -105,23 +131,37 @@ export const useWizardStore = defineStore('wizard', () => {
   const totals = computed(() => computeTotals(values))
   const showAmountDue = computed(() => hasBilling(values))
 
-  const organizationOverride = computed(() => toOrganizationOverride(organization))
-
+  // Saved branding is read from Notion by the server; only unsaved edits travel with a preview.
   const organizationFields = computed<Values>(() =>
-    organizationOverride.value
-      ? { organization: organizationOverride.value }
-      : { organizationId: organization.id },
+    organizationSaved.value ? {} : { organization: toPreviewOrganization(organization) },
   )
 
   const brandPreviewVariables = computed<Values>(() => ({ ...organizationFields.value }))
 
+  function currentData(): Values {
+    if (!schema.value) return {}
+    const payload = toPayload(schema.value, values) as Values | undefined
+    // An edit also carries saved fields the form has no input for.
+    return editing.value
+      ? keepUnlistedFields(schema.value, editing.value.saved, payload)
+      : { ...payload }
+  }
+
   const previewVariables = computed<Values>(() => ({
-    ...((schema.value ? toPayload(schema.value, values) : undefined) as Values | undefined),
+    ...currentData(),
     ...organizationFields.value,
   }))
 
+  const hasUnsavedEdits = computed(
+    () =>
+      editing.value !== null &&
+      (editing.value.droppedTerms.length > 0 ||
+        JSON.stringify(currentData()) !== editing.value.opened),
+  )
+
   const problems = computed<Problem[]>(() => {
     const list = schema.value ? validateForm(formSchema.value, values) : []
+    if (editing.value) return list
     if (!ids.value.userId.trim()) {
       list.push({
         path: 'ids.userId',
@@ -179,6 +219,8 @@ export const useWizardStore = defineStore('wizard', () => {
 
   function applyTemplate(detail: TemplateDetail) {
     template.value = detail
+    // A saved document's values are shown as stored, with no template defaults filled in.
+    if (editing.value) return
     const stripped = stripExcluded(detail.schema)
     const blank = emptyValue(stripped) as Values
     const serverDefaults = schemaDefaults(stripped, IGNORED_SERVER_DEFAULTS)
@@ -203,6 +245,8 @@ export const useWizardStore = defineStore('wizard', () => {
   }
 
   async function prefillNumber() {
+    // A saved document keeps the number it already has.
+    if (editing.value) return
     const path = numberPath.value
     const id = templateId.value
     const mine = ++numberTicket
@@ -212,11 +256,7 @@ export const useWizardStore = defineStore('wizard', () => {
       return
     }
     try {
-      const result = await documentsApi.nextNumber({
-        templateId: id,
-        organizationId: organization.id.trim() || undefined,
-        organizationName: organization.name.trim() || undefined,
-      })
+      const result = await documentsApi.nextNumber({ templateId: id })
       if (mine !== numberTicket || templateId.value !== id) return
       if (typeof result.number !== 'string' || result.number === '') {
         throw new Error('The server returned no number.')
@@ -240,7 +280,7 @@ export const useWizardStore = defineStore('wizard', () => {
   }
 
   function selectTemplate(id: string | null) {
-    if (templateId.value === id) return
+    if (editing.value || templateId.value === id) return
     templateId.value = id
     clientId.value = null
     submitAttempted.value = false
@@ -254,6 +294,9 @@ export const useWizardStore = defineStore('wizard', () => {
   }
 
   async function loadTemplate(id: string) {
+    if (editing.value) {
+      throw new Error('A saved document is open. Its template cannot be changed.')
+    }
     const detail = await fetchTemplateDetail(id)
     selectTemplate(id)
     applyTemplate(detail)
@@ -294,14 +337,72 @@ export const useWizardStore = defineStore('wizard', () => {
     previewWarnings.value = warnings
   }
 
-  function saveOrganizationProfile() {
-    saveOrganization(organization)
-    organizationSaved.value = true
+  const copy = (profile: OrganizationProfile) =>
+    JSON.parse(JSON.stringify(profile)) as OrganizationProfile
+
+  function applyOrganization(record: OrganizationRecord) {
+    const profile = fromStoredOrganization(record.organization)
+    organizationBaseline.value = copy(profile)
+    organizationForm.reset(profile)
+    organizationRevision.value = record.revision
+    organizationStatus.value = 'ready'
+    organizationError.value = null
+  }
+
+  const messageOf = (error: unknown, fallback: string) =>
+    error instanceof Error ? error.message : fallback
+
+  let organizationRequest: Promise<boolean> | null = null
+
+  /** Reads the organisation from Notion, replacing whatever the form holds. */
+  function loadOrganizationProfile(): Promise<boolean> {
+    organizationRequest ??= (async () => {
+      organizationStatus.value = 'loading'
+      organizationError.value = null
+      try {
+        applyOrganization(await organizationApi.get())
+        return true
+      } catch (error) {
+        organizationStatus.value = 'error'
+        organizationError.value = messageOf(error, 'Could not load the organisation from Notion.')
+        return false
+      } finally {
+        organizationRequest = null
+      }
+    })()
+    return organizationRequest
+  }
+
+  function ensureOrganization(): Promise<boolean> {
+    return organizationRevision.value === null ? loadOrganizationProfile() : Promise.resolve(true)
+  }
+
+  /** Writes the edited fields to Notion. On failure the edits stay in the form and `organizationError` says why. */
+  async function saveOrganizationProfile(): Promise<boolean> {
+    const revision = organizationRevision.value
+    if (revision === null) {
+      organizationError.value ??= 'The organisation has not been loaded from Notion yet.'
+      return false
+    }
+    if (organizationSaved.value) return true
+    organizationStatus.value = 'saving'
+    organizationError.value = null
+    try {
+      applyOrganization(await organizationApi.update(revision, organizationChanges.value))
+      return true
+    } catch (error) {
+      organizationStatus.value = 'ready'
+      organizationError.value = messageOf(error, 'Could not save to Notion.')
+      return false
+    }
   }
 
   async function createDocument(signal?: AbortSignal) {
+    if (editing.value) throw new Error('A saved document is open. Save your changes to it instead.')
     if (!templateId.value || !schema.value) throw new Error('Pick a template first.')
     serverErrors.value = []
+    // A document is rendered from the Notion record, so unsaved branding would silently be left out.
+    if (!organizationSaved.value) throw new Error('Save or discard your brand changes first.')
     const data = toPayload(schema.value, values) as Values
     const numbered = numberPath.value ? textAt(data, numberPath.value) : ''
     const name = numbered || `${templateId.value}-${new Date().toISOString().slice(0, 10)}`
@@ -314,11 +415,8 @@ export const useWizardStore = defineStore('wizard', () => {
           template: templateId.value,
           userId: ids.value.userId.trim(),
           contactId: ids.value.contactId.trim(),
-          ...(organizationOverride.value ? {} : { organizationId: organization.id }),
           ...(ids.value.projectId.trim() ? { projectId: ids.value.projectId.trim() } : {}),
-          data: organizationOverride.value
-            ? { ...data, organization: organizationOverride.value }
-            : data,
+          data,
         },
         signal,
       )
@@ -331,11 +429,95 @@ export const useWizardStore = defineStore('wizard', () => {
   }
 
   function discardOrganizationChanges() {
-    organizationForm.reset(loadOrganization())
-    organizationSaved.value = true
+    organizationForm.reset(copy(organizationBaseline.value))
+    organizationError.value = null
+  }
+
+  /** The unfinished new document, set aside while a saved one is open. */
+  let setAside: {
+    templateId: string | null
+    clientId: string | null
+    template: TemplateDetail | null
+    values: string
+    lockedNumberPath: string | null
+    document: CreateDocumentResponse | null
+  } | null = null
+
+  function startEditing(saved: DocumentDetail, detail: TemplateDetail) {
+    stopEditing()
+    setAside = {
+      templateId: templateId.value,
+      clientId: clientId.value,
+      template: template.value,
+      values: JSON.stringify(values),
+      lockedNumberPath: lockedNumberPath.value,
+      document: document.value,
+    }
+    const data = (saved.rawData ?? {}) as Values
+    // Set first: from here on the new-document draft is no longer written to.
+    editing.value = {
+      id: saved.id,
+      name: saved.name,
+      revision: saved.revision,
+      saved: data,
+      droppedTerms: [],
+      opened: '',
+    }
+    numberTicket++
+    numberError.value = null
+    templateError.value = null
+    submitAttempted.value = false
+    serverErrors.value = []
+    previewWarnings.value = []
+    document.value = null
+    clientId.value = null
+    templateId.value = detail.id
+    template.value = detail
+
+    const dropped: string[] = []
+    form.reset(toFormValues(stripExcluded(detail.schema), data, dropped) as Values)
+    const path = numberPath.value
+    lockedNumberPath.value = path && textAt(values, path) !== '' ? path.join('.') : null
+    editing.value.droppedTerms = dropped
+    editing.value.opened = JSON.stringify(currentData())
+  }
+
+  function stopEditing() {
+    if (!editing.value || !setAside) return
+    const previous = setAside
+    setAside = null
+    const editedTemplate = templateId.value === previous.templateId ? template.value : null
+    editing.value = null
+    templateId.value = previous.templateId
+    clientId.value = previous.clientId
+    template.value = previous.template ?? editedTemplate
+    form.reset(JSON.parse(previous.values) as Values)
+    lockedNumberPath.value = previous.lockedNumberPath
+    submitAttempted.value = false
+    serverErrors.value = []
+    previewWarnings.value = []
+    // Last, after the watcher that clears it when the values change.
+    void nextTick(() => (document.value = previous.document))
+  }
+
+  async function saveDocumentEdits(signal?: AbortSignal) {
+    const open = editing.value
+    if (!open) throw new Error('No document is open for editing.')
+    if (!organizationSaved.value) throw new Error('Save or discard your brand changes first.')
+    serverErrors.value = []
+    try {
+      await documentsApi.edit(open.id, { revision: open.revision, data: currentData() }, signal)
+    } catch (error) {
+      if (error instanceof ApiError) serverErrors.value = error.fields
+      throw error
+    }
+    stopEditing()
   }
 
   function reset() {
+    // Not stopEditing(): everything is being cleared, so the set-aside draft must not come back.
+    editing.value = null
+    setAside = null
     templateId.value = null
     clientId.value = null
     submitAttempted.value = false
@@ -348,13 +530,15 @@ export const useWizardStore = defineStore('wizard', () => {
   const refreshNumber = useDebounceFn(() => {
     if (numberPath.value) void prefillNumber()
   }, 600)
+  // The server numbers documents from the saved name, so only a save or reload can change a number.
   watch(
-    () => [organization.id, organization.name] as const,
-    () => void refreshNumber(),
+    () => organizationBaseline.value.name,
+    (_, previous) => {
+      if (previous !== '') void refreshNumber()
+    },
   )
 
   watch([values, ids], () => (document.value = null), { deep: true })
-  watch(organization, () => (organizationSaved.value = false), { deep: true, flush: 'sync' })
   watch(
     () =>
       [
@@ -369,10 +553,12 @@ export const useWizardStore = defineStore('wizard', () => {
   watch(
     [templateId, clientId, values],
     () => {
+      if (editing.value) return
       draft.value = {
         templateId: templateId.value,
         clientId: clientId.value,
-        values,
+        // A copy: the storage ref is watched deeply, and the live object also holds a document being edited.
+        values: JSON.parse(JSON.stringify(values)) as Values,
       } satisfies Draft
     },
     { deep: true },
@@ -391,6 +577,11 @@ export const useWizardStore = defineStore('wizard', () => {
     organization,
     organizationForm,
     organizationSaved,
+    organizationStatus,
+    organizationError,
+    organizationRevision,
+    loadOrganizationProfile,
+    ensureOrganization,
     ids,
     document,
     serverErrors,
@@ -399,7 +590,6 @@ export const useWizardStore = defineStore('wizard', () => {
     externalErrors,
     totals,
     showAmountDue,
-    organizationOverride,
     previewVariables,
     brandPreviewVariables,
     problems,
@@ -421,6 +611,11 @@ export const useWizardStore = defineStore('wizard', () => {
     saveOrganizationProfile,
     discardOrganizationChanges,
     createDocument,
+    editing,
+    hasUnsavedEdits,
+    startEditing,
+    stopEditing,
+    saveDocumentEdits,
     reset,
   }
 })

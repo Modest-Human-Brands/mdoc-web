@@ -73,7 +73,7 @@ function boxStyle(mark: FieldMark, page: number) {
         v-for="mark in marksOn(n)"
         :key="mark.key"
         type="button"
-        data-mark
+        :data-mark="mark.key"
         :aria-label="mark.label"
         :style="boxStyle(mark, n)"
         class="absolute flex animate-pulse items-center justify-center rounded-sm border-2 border-dashed border-accent-400 bg-accent-400/20 text-[10px] leading-none font-bold text-accent-500 transition-colors hover:animate-none hover:bg-accent-400/35 focus-visible:shadow-focus-ring focus-visible:outline-none"

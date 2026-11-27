@@ -38,6 +38,11 @@ const router = createRouter({
       component: () => import('@/views/Documents/DocumentDetail.vue'),
     },
     {
+      path: '/documents/:id/edit',
+      name: 'document-edit',
+      component: () => import('@/views/Documents/EditDocument.vue'),
+    },
+    {
       path: '/documents/:id/send',
       name: 'send',
       component: () => import('@/views/Documents/SendForSignature.vue'),
@@ -73,14 +78,29 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const wizard = useWizardStore()
+  // Leaving the editor (other than to the brand screen and back) brings the new-document draft back.
+  const open = wizard.editing?.id
+  if (open && to.name !== 'brand' && !(to.name === 'document-edit' && to.params.id === open)) {
+    wizard.stopEditing()
+  }
 
   if (to.name === 'sign' || to.name === 'setup') return true
   // Setup is gated on details saved in this browser; runtime config and .env only pre-fill it.
   if (!isConnected(loadAccess())) return { name: 'setup', query: { next: to.fullPath } }
+  // Not awaited: pages render at once, and the brand screen shows its own loading and error states.
+  void wizard.ensureOrganization()
   if (
-    ['brand', 'documents', 'document', 'send', 'sign', 'terms', 'term-new', 'term'].includes(
-      String(to.name),
-    )
+    [
+      'brand',
+      'documents',
+      'document',
+      'document-edit',
+      'send',
+      'sign',
+      'terms',
+      'term-new',
+      'term',
+    ].includes(String(to.name))
   )
     return true
   if (to.name !== 'template' && !wizard.templateId) return STEPS[0].path

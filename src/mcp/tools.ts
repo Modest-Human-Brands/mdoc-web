@@ -78,7 +78,6 @@ const STRING = { type: 'string' } as const
 const NONE = { type: 'object', properties: {} } as const
 
 const ORGANIZATION_KEYS = [
-  'id',
   'name',
   'legalName',
   'entityType',
@@ -368,7 +367,7 @@ export function createTools(deps: ToolDeps): ModelContextTool[] {
 
     tool(
       'set_organization',
-      `Sets the organisation profile (Brand step). "id" picks the server's branding preset; any other field you set overrides that preset on the generated PDF (untouched fields keep the preset's values) and is cached on this device. Keys: ${ORGANIZATION_KEYS.join(', ')}.`,
+      `Updates the signed-in organisation's profile and branding (Brand step) and saves it to Notion, after the user confirms. It changes every document created afterwards, for everyone in the organisation. Only the fields you pass change; an empty string clears one. Keys: ${ORGANIZATION_KEYS.join(', ')}.`,
       {
         type: 'object',
         properties: Object.fromEntries(ORGANIZATION_KEYS.map((key) => [key, STRING])),
@@ -379,6 +378,13 @@ export function createTools(deps: ToolDeps): ModelContextTool[] {
           (key) => !(ORGANIZATION_KEYS as readonly string[]).includes(key),
         )
         if (unknown.length > 0) return fail(`Unknown keys: ${unknown.join(', ')}.`)
+        if (!(await wizard.ensureOrganization())) {
+          return fail(wizard.organizationError ?? 'Could not load the organisation from Notion.')
+        }
+        // Saving writes every pending edit, so never sweep up what the user has not saved themselves.
+        if (!wizard.organizationSaved) {
+          return fail('The Brand step has unsaved changes. Ask the user to save or cancel them.')
+        }
         const next: Partial<OrganizationProfile> = {}
         const errors: string[] = []
         const socials: Partial<Record<SocialKey, string>> = {}
@@ -424,17 +430,24 @@ export function createTools(deps: ToolDeps): ModelContextTool[] {
               errors.push(`"${key}" must be an https:// link (got "${value}").`)
             } else if (key === 'website') next.website = text
             else socials[key as SocialKey] = text
-          } else if (key === 'id' && text === '') {
-            errors.push('id cannot be empty.')
           } else {
             ;(next as Record<string, string>)[key] = text
           }
         }
         if (errors.length > 0) return fail('No organisation fields were changed.', { errors })
+        const changed = [...Object.keys(next), ...Object.keys(socials)]
+        if (changed.length === 0) return fail('Pass at least one field to change.')
+        if (!(await confirm(`Save these organisation changes to Notion: ${changed.join(', ')}?`))) {
+          return fail('The user declined. Nothing was changed.')
+        }
         Object.assign(wizard.organization, next)
         Object.assign(wizard.organization.socials, socials)
-        wizard.saveOrganizationProfile()
-        return ok({ organizationId: wizard.organization.id })
+        if (!(await wizard.saveOrganizationProfile())) {
+          const reason = wizard.organizationError ?? 'Could not save to Notion.'
+          wizard.discardOrganizationChanges()
+          return fail(reason)
+        }
+        return ok({ organizationId: wizard.organization.id, saved: changed })
       },
     ),
 
@@ -464,6 +477,11 @@ export function createTools(deps: ToolDeps): ModelContextTool[] {
       false,
       async () => {
         if (!wizard.templateId || !wizard.schema) return fail(NO_TEMPLATE)
+        if (wizard.editing) {
+          return fail(
+            'A saved document is open for editing. Ask the user to save or cancel it first.',
+          )
+        }
         if (wizard.problems.length > 0) {
           return fail('The form is not ready to create.', { problems: wizard.problems })
         }

@@ -126,17 +126,13 @@ describe('api client', () => {
       number: 'MHB-I-26-001',
     })
 
-    const result = await documentsApi.nextNumber({
-      templateId: 'invoice',
-      organizationId: 'modest-human-brands',
-      organizationName: 'Modest Human Brands',
-    })
+    const result = await documentsApi.nextNumber({ templateId: 'invoice' })
 
     expect(result.number).toBe('MHB-I-26-001')
-    expect(fetchMock.mock.calls[0]?.[0]).toBe(
-      '/api/document/numbering/next?templateId=invoice&organizationName=Modest+Human+Brands',
-    )
-    expect(fetchMock.mock.calls[0]?.[1]?.headers).toEqual({ 'x-org-id': 'modest-human-brands' })
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('/api/document/numbering/next?templateId=invoice')
+    expect(fetchMock.mock.calls[0]?.[1]?.headers).toMatchObject({
+      'x-org-id': 'modest-human-brands',
+    })
   })
 
   it('keeps a Notion organisation id in the body instead of the x-org-id header', async () => {

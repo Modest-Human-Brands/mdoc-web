@@ -299,27 +299,89 @@ describe('WebMCP tools', () => {
     expect(result.step).toBe('details')
   })
 
+  const organizationRecord = {
+    pageId: 'page-1',
+    revision: 'r1',
+    organization: {
+      id: 'zzz',
+      name: 'ZZZ Studio',
+      branding: { color: { primary: '#111827', accent: '#5945EA' }, font: 'Exo2' },
+    },
+  }
+
+  function stubOrganization(patchStatus = 200) {
+    return stubFetch((url, init) => {
+      if (url.includes('/fonts')) return json([{ family: 'Poppins', name: 'Poppins' }])
+      if (init?.method !== 'PATCH') return json(organizationRecord)
+      return patchStatus === 200
+        ? json({
+            ...organizationRecord,
+            revision: 'r2',
+            organization: { ...organizationRecord.organization, name: 'Acme' },
+          })
+        : json({ statusMessage: 'Changed in Notion' }, patchStatus)
+    })
+  }
+
+  const patches = (fetchMock: ReturnType<typeof stubFetch>) =>
+    fetchMock.mock.calls.filter(([, init]) => init?.method === 'PATCH')
+
   it('set_organization only accepts known keys and valid entity types', async () => {
-    const { wizard, call } = setup()
+    const fetchMock = stubOrganization()
+    const { call } = setup()
 
     expect((await call('set_organization', { colour: 'red' })).isError).toBe(true)
+    expect((await call('set_organization', { id: 'other-org' })).isError).toBe(true)
     expect((await call('set_organization', { entityType: 'Charity' })).isError).toBe(true)
+    expect(patches(fetchMock)).toHaveLength(0)
+  })
 
-    await call('set_organization', { id: 'acme', entityType: 'llp' })
-    expect(wizard.organization).toMatchObject({ id: 'acme', entityType: 'LLP' })
-    expect(localStorage.getItem('mdoc.organization')).toContain('acme')
+  it('set_organization saves to Notion only after the user confirms', async () => {
+    const fetchMock = stubOrganization()
+    const confirm = vi.fn<ToolDeps['confirm']>(() => Promise.resolve(false))
+    const { wizard, call } = setup(confirm)
+
+    expect((await call('set_organization', { name: 'Acme' })).isError).toBe(true)
+    expect(patches(fetchMock)).toHaveLength(0)
+    expect(wizard.organization.name).toBe('ZZZ Studio')
+
+    confirm.mockImplementation(() => Promise.resolve(true))
+    expect((await call('set_organization', { name: 'Acme' })).isError).toBeUndefined()
+    expect(patches(fetchMock)).toHaveLength(1)
+    expect(wizard.organization.name).toBe('Acme')
+    expect(localStorage.getItem('mdoc.organization')).toBeNull()
+  })
+
+  it('set_organization reverts the form when Notion rejects the save', async () => {
+    stubOrganization(409)
+    const { wizard, call } = setup()
+
+    const result = await call('set_organization', { name: 'Acme' })
+
+    expect(result.isError).toBe(true)
+    expect(data<{ error: string }>(result).error).toBe('Changed in Notion')
+    expect(wizard.organization.name).toBe('ZZZ Studio')
+    expect(wizard.organizationSaved).toBe(true)
+  })
+
+  it('set_organization will not save changes the user left unsaved', async () => {
+    const fetchMock = stubOrganization()
+    const { wizard, call } = setup()
+    await wizard.ensureOrganization()
+    wizard.organization.pan = 'TYPED-BY-USER'
+
+    expect((await call('set_organization', { name: 'Acme' })).isError).toBe(true)
+    expect(patches(fetchMock)).toHaveLength(0)
   })
 
   it('set_organization validates colours, font and emails, all or nothing', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn<typeof fetch>(() => Promise.resolve(json([{ family: 'Poppins', name: 'Poppins' }]))),
-    )
+    const fetchMock = stubOrganization()
     const { wizard, call } = setup()
+    await wizard.ensureOrganization()
     const before = JSON.stringify(wizard.organization)
 
     const bad = await call('set_organization', {
-      id: 'changed',
+      name: 'changed',
       primary: 'notacolor',
       font: 'Comic Sans',
       billingEmail: 'nope',
@@ -330,21 +392,17 @@ describe('WebMCP tools', () => {
     expect(body.errors).toHaveLength(3)
     expect(body.errors.join(' ')).toContain('#5945EA')
     expect(JSON.stringify(wizard.organization)).toBe(before)
+    expect(patches(fetchMock)).toHaveLength(0)
 
-    vi.stubGlobal(
-      'fetch',
-      vi.fn<typeof fetch>(() => Promise.resolve(json([{ family: 'Poppins', name: 'Poppins' }]))),
-    )
     const good = await call('set_organization', {
       primary: '#abc',
-      accent: '#5945ea',
+      accent: '#0e7490',
       font: 'poppins',
     })
     expect(good.isError).toBeUndefined()
-    expect(wizard.organization).toMatchObject({
-      primary: '#AABBCC',
-      accent: '#5945EA',
-      font: 'Poppins',
+    expect(JSON.parse(patches(fetchMock)[0]?.[1]?.body as string)).toEqual({
+      revision: 'r1',
+      branding: { color: { primary: '#AABBCC', accent: '#0E7490' }, font: 'Poppins' },
     })
   })
 

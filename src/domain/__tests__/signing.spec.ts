@@ -11,7 +11,12 @@ import {
   planFields,
   resolvePages,
   signerSlots,
+  fieldKind,
+  inReadingOrder,
+  signerAhead,
+  signingPlaces,
   stateFromSession,
+  type FieldMark,
   waitingLabel,
   waitingOn,
 } from '../signing'
@@ -132,8 +137,35 @@ describe('signing', () => {
   })
 
   it('knows when a signer has already signed', () => {
-    expect(stateFromSession('SIGNED')).toBe('already')
-    expect(stateFromSession('PENDING')).toBe('landing')
+    expect(stateFromSession({ status: 'SIGNED', order: 1 })).toBe('already')
+    expect(stateFromSession({ status: 'PENDING', order: 1 })).toBe('landing')
+  })
+
+  it('makes a later signer wait only when signing happens in order', () => {
+    const queue = [
+      { order: 1, name: 'A', email: 'a@x.in', role: '', status: 'PENDING' },
+      { order: 2, name: 'B', email: 'b@x.in', role: '', status: 'PENDING' },
+    ]
+    const second = { status: 'PENDING', order: 2 }
+    expect(signerAhead(second, queue, 'SEQUENTIAL')?.name).toBe('A')
+    expect(stateFromSession(second, queue, 'SEQUENTIAL')).toBe('waiting')
+    expect(stateFromSession(second, queue, 'PARALLEL')).toBe('landing')
+    expect(stateFromSession({ status: 'PENDING', order: 1 }, queue, 'SEQUENTIAL')).toBe('landing')
+  })
+
+  it('counts signing places only when the page list is known', () => {
+    const field = (type: string, pageIndex?: unknown) =>
+      ({ id: type, type, pageIndex }) as unknown as SignerField
+    expect(signingPlaces([field('SIGNATURE'), field('INITIALS', [0, 1]), field('DATE')])).toBe(3)
+    expect(signingPlaces([field('INITIALS', 'all-except-last')])).toBeNull()
+    expect(signingPlaces([field('TEXT')])).toBeNull()
+  })
+
+  it('walks fields in reading order', () => {
+    const mark = (key: string, page: number, y: number) => ({ key, page, y, x: 0 }) as FieldMark
+    const order = inReadingOrder([mark('c', 2, 700), mark('b', 1, 100), mark('a', 1, 600)])
+    expect(order.map((item) => item.key)).toEqual(['a', 'b', 'c'])
+    expect(fieldKind('SIGNATURE')).toBe('Signature')
   })
 
   it('counts the other signers still waiting', () => {

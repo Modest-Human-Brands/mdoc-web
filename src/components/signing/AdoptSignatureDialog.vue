@@ -18,6 +18,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: []
   adopt: [fields: Record<string, string>]
+  usb: [fields: Record<string, string>]
 }>()
 
 const signature = ref<string | null>(null)
@@ -41,10 +42,21 @@ const ready = computed(
   () => signature.value !== null && consent.value && missing.value.length === 0,
 )
 
-function submit() {
+/** Both ways of signing need the same signature, fields and consent. */
+function completed(): Record<string, string> | null {
   attempted.value = true
-  if (!ready.value || !signature.value) return
-  emit('adopt', fieldValues(props.plan, signature.value, texts))
+  if (!ready.value || !signature.value) return null
+  return fieldValues(props.plan, signature.value, texts)
+}
+
+function submit() {
+  const fields = completed()
+  if (fields) emit('adopt', fields)
+}
+
+function submitWithToken() {
+  const fields = completed()
+  if (fields) emit('usb', fields)
 }
 </script>
 
@@ -72,7 +84,15 @@ function submit() {
     </p>
     <p v-if="error" class="rounded-md bg-alert-600 px-3 py-2 text-sm" role="alert">{{ error }}</p>
 
-    <div class="flex justify-end gap-2">
+    <div class="flex flex-wrap items-center justify-end gap-2">
+      <button
+        type="button"
+        class="mr-auto rounded-sm text-sm font-semi-bold text-accent-400 outline-none hover:text-white focus-visible:shadow-focus-ring disabled:opacity-40"
+        :disabled="busy"
+        @click="submitWithToken"
+      >
+        Sign with USB token
+      </button>
       <UiButton variant="ghost" @click="emit('close')">Cancel</UiButton>
       <UiButton :disabled="busy" @click="submit">{{
         busy ? 'Signing…' : 'Adopt and sign'

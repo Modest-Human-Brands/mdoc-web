@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import IconPdf from '~icons/lucide/file-text'
 import { useObjectUrl } from '@vueuse/core'
-import { computed, ref, shallowRef, watch } from 'vue'
+import { computed, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 import {
@@ -8,20 +9,32 @@ import {
   fetchTemplateDetail,
   signingApi,
   type DocumentDetail,
+  type TemplateDetail,
   type SignerField,
   type VerifySessionResponse,
 } from '@/api'
+import { mstudioApi, type TokenCertificate } from '@/api/mstudio'
+import SignerProgress from '@/components/documents/SignerProgress.vue'
 import AdoptSignatureDialog from '@/components/signing/AdoptSignatureDialog.vue'
+import BrandMark from '@/components/signing/BrandMark.vue'
+import SigningCard from '@/components/signing/SigningCard.vue'
 import SigningStatusDialog from '@/components/signing/SigningStatusDialog.vue'
+import UsbTokenDialog from '@/components/signing/UsbTokenDialog.vue'
 import UiButton from '@/components/ui/UiButton.vue'
 import PreviewPanel from '@/components/wizard/PreviewPanel.vue'
 import { errorMessage } from '@/composables/useTemplates'
-import { formatDay, signedCount, signerCaption, signersOf } from '@/domain/documents'
+import { issuerChain } from '@/domain/certificates'
+import { documentMeta, formatDay, signersOf, userNameOf } from '@/domain/documents'
 import { pdfFileName, saveBlob } from '@/domain/download'
-import { parseSigningLink } from '@/domain/signers'
+import { linkExpiry, parseSigningLink } from '@/domain/signers'
 import {
+  fieldKind,
   fieldsOf,
+  inReadingOrder,
+  marksFor,
   planFields,
+  signerAhead,
+  signingPlaces,
   stateFromSession,
   waitingLabel,
   waitingOn,
@@ -45,6 +58,9 @@ const failure = ref<string | null>(null)
 const signStage = ref<'idle' | 'signing' | 'failed'>('idle')
 const signStep = ref<1 | 2>(1)
 let lastFields: Record<string, string> = {}
+/** Set while signing with a USB token, so that "Try again" signs the same way. */
+const tokenCertificate = shallowRef<TokenCertificate | null>(null)
+const usbOpen = ref(false)
 const signedAt = ref<Date | null>(null)
 
 const signers = computed(() => (detail.value ? signersOf(detail.value) : []))
@@ -52,16 +68,49 @@ const me = computed(() =>
   signers.value.find((signer) => signer.email === session.value?.signerEmail),
 )
 const meName = computed(() => me.value?.name || session.value?.signerEmail || '')
-const sender = computed(() => {
+const sender = computed(() => userNameOf(detail.value?.user) || 'Someone')
+const template = shallowRef<TemplateDetail | null>(null)
+const projectName = computed(() => {
   const name = detail.value?.project?.name
-  return name && name !== 'Misc' ? name : 'Someone'
+  return name && name !== 'Misc' ? name : ''
 })
-const waiting = computed(() => waitingOn(signers.value, session.value?.signerEmail ?? ''))
-const signedOn = computed(() =>
-  signedAt.value
-    ? signedAt.value.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
-    : '',
+const projectLine = computed(() =>
+  [projectName.value, template.value?.label].filter(Boolean).join(' · '),
 )
+const places = computed(() => signingPlaces(myFields.value))
+const placesText = computed(() => {
+  const count = places.value
+  if (count === null) return 'then sign'
+  return `then sign in ${count} ${count === 1 ? 'place' : 'places'}`
+})
+const expiresOn = computed(() => formatDay(linkExpiry(link.value?.token ?? '')?.toISOString()))
+const ahead = computed(() =>
+  session.value
+    ? signerAhead(session.value, signers.value, detail.value?.routingType ?? null)
+    : undefined,
+)
+const positionOf = (email: string | undefined) =>
+  signers.value.findIndex((signer) => signer.email === email) + 1
+
+const pages = ref(0)
+const preview = useTemplateRef<InstanceType<typeof PreviewPanel>>('preview')
+const marks = computed(() => inReadingOrder(marksFor(myFields.value, pages.value)))
+const fieldIndex = ref(0)
+const currentMark = computed(() => marks.value[fieldIndex.value])
+const hasNextField = computed(() => fieldIndex.value < marks.value.length - 1)
+
+function nextField() {
+  fieldIndex.value++
+  if (currentMark.value) preview.value?.focusMark(currentMark.value.key)
+}
+
+const waiting = computed(() => waitingOn(signers.value, session.value?.signerEmail ?? ''))
+const signedOn = computed(() => {
+  const at = signedAt.value ?? (me.value?.signedAt ? new Date(me.value.signedAt) : null)
+  return at && !Number.isNaN(at.getTime())
+    ? at.toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+    : ''
+})
 
 async function init() {
   const parsed = link.value
@@ -77,12 +126,13 @@ async function init() {
     ])
     detail.value = loaded
     pdf.value = blob
-    const template = loaded.templateId
+    template.value = loaded.templateId
       ? await fetchTemplateDetail(loaded.templateId).catch(() => null)
       : null
-    plan.value = planFields(template?.signerFields ?? [], session.value.order)
-    myFields.value = fieldsOf(template?.signerFields ?? [], session.value.order)
-    state.value = stateFromSession(session.value.status)
+    plan.value = planFields(template.value?.signerFields ?? [], session.value.order)
+    myFields.value = fieldsOf(template.value?.signerFields ?? [], session.value.order)
+    fieldIndex.value = 0
+    state.value = stateFromSession(session.value, signersOf(loaded), loaded.routingType)
   } catch {
     state.value = 'invalid'
   }
@@ -90,23 +140,40 @@ async function init() {
 
 watch(link, init, { immediate: true })
 
-async function adopt(fields: Record<string, string>) {
+async function sign(fields: Record<string, string>, certificate: TokenCertificate | null) {
   const parsed = link.value
-  if (!parsed) return
+  if (!parsed || busy.value) return
   lastFields = fields
+  tokenCertificate.value = certificate
   busy.value = true
   failure.value = null
   signStep.value = 1
   signStage.value = 'signing'
   dialogOpen.value = false
+  usbOpen.value = false
   try {
     const prepared = await signingApi.prepare(parsed.id, {
       sessionToken: parsed.token,
       fields,
+      ...(certificate
+        ? {
+            certificateDerHex: certificate.certificateDerHex,
+            certificateChainDerHex: issuerChain(
+              certificate.certificateDerHex,
+              certificate.certificateChainDerHex,
+            ),
+          }
+        : {}),
       telemetry: { userAgent: navigator.userAgent },
     })
     signStep.value = 2
-    await signingApi.signOnServer(parsed.id, prepared.sessionId)
+    if (certificate) {
+      if (!prepared.digestHex) throw new Error('The server returned nothing for the token to sign.')
+      const signature = await mstudioApi.signHash(prepared.digestHex, certificate.index)
+      await signingApi.signOnClient(parsed.id, prepared.sessionId, signature)
+    } else {
+      await signingApi.signOnServer(parsed.id, prepared.sessionId)
+    }
     signedAt.value = new Date()
     detail.value = await documentsApi.get(parsed.id)
     pdf.value = await documentsApi.content(parsed.id)
@@ -118,6 +185,12 @@ async function adopt(fields: Record<string, string>) {
   } finally {
     busy.value = false
   }
+}
+
+function chooseToken(fields: Record<string, string>) {
+  lastFields = fields
+  dialogOpen.value = false
+  usbOpen.value = true
 }
 
 async function downloadSigned() {
@@ -133,159 +206,174 @@ async function downloadSigned() {
 
 <template>
   <div class="flex h-full min-h-0 flex-col bg-dark-400 text-white">
-    <header class="flex items-center justify-between px-6 py-4">
-      <div class="flex items-center gap-2">
-        <span
-          class="flex size-6 items-center justify-center rounded-sm bg-white text-xs font-bold text-dark-400"
-          aria-hidden="true"
-        >
-          M
-        </span>
-        <span class="text-base font-bold">MDoc</span>
-      </div>
-      <span v-if="meName" class="text-sm text-light-400">Signing as {{ meName }}</span>
-    </header>
-
-    <main class="flex min-h-0 flex-1 flex-col items-center justify-center p-6">
-      <p v-if="state === 'loading'" class="text-sm text-light-400" role="status">
-        Opening your signing link…
-      </p>
-
-      <section
-        v-else-if="state === 'invalid'"
-        class="flex w-full max-w-140 flex-col gap-4 rounded-2xl border border-dark-600 bg-dark-500 p-8"
+    <div v-if="state === 'signing' && detail" class="flex min-h-0 flex-1">
+      <PreviewPanel
+        ref="preview"
+        :label="detail.name"
+        :url="pdfUrl ?? null"
+        :reset-key="detail.id"
+        :fields="myFields"
+        viewer
+        @mark="dialogOpen = true"
+        @page-count="pages = $event"
       >
-        <p class="font-mono text-xs tracking-widest text-light-400 uppercase">Link unavailable</p>
-        <h1 class="text-2xl font-bold">This signing link doesn't work</h1>
-        <p class="text-light-500">
-          For security, signing links stop working after they expire. Ask the sender to send you a
-          fresh one.
-        </p>
-      </section>
-
-      <section
-        v-else-if="state === 'landing' && detail"
-        class="flex w-full max-w-140 flex-col gap-4 rounded-2xl border border-dark-600 bg-dark-500 p-8"
-      >
-        <p class="font-mono text-xs tracking-widest text-light-400 uppercase">
-          Signature requested
-        </p>
-        <h1 class="text-2xl font-bold">Your signature is needed</h1>
-        <p class="text-light-500">
-          {{ sender }} has sent you {{ detail.name }}. Review the document, then sign.
-        </p>
-        <dl class="flex flex-col gap-3 rounded-lg bg-overlay p-4 text-sm">
-          <div>
-            <dt class="text-xs text-light-400">Document</dt>
-            <dd>{{ detail.name }}</dd>
-          </div>
-          <div>
-            <dt class="text-xs text-light-400">From</dt>
-            <dd>{{ sender }}</dd>
-          </div>
-        </dl>
-        <UiButton @click="state = 'signing'">Review and sign</UiButton>
-        <p class="text-center text-xs text-light-400">
-          This link is private to {{ session?.signerEmail }}.
-        </p>
-      </section>
-
-      <div
-        v-else-if="state === 'signing' && detail"
-        class="-m-6 flex size-[calc(100%+3rem)] min-h-0"
-      >
-        <PreviewPanel
-          :label="detail.name"
-          :url="pdfUrl ?? null"
-          :reset-key="detail.id"
-          :fields="myFields"
-          viewer
-          @mark="dialogOpen = true"
-        />
-        <aside
-          class="flex w-96 shrink-0 flex-col gap-5 overflow-y-auto border-l border-dark-600 px-6 py-6"
-          aria-label="Signing details"
-        >
-          <div class="flex items-start justify-between gap-3">
-            <h1 class="text-lg font-bold">{{ detail.name }}</h1>
-            <span class="rounded-md bg-dark-500 px-2 py-1 text-xs font-semi-bold"
-              >Awaiting you</span
-            >
-          </div>
-          <div class="flex flex-col gap-2">
-            <div class="flex justify-between text-xs text-light-400">
-              <span>{{ signedCount(signers) }} of {{ signers.length }} signed</span>
-            </div>
-            <ul class="flex flex-col gap-2">
-              <li
-                v-for="(signer, index) in signers"
-                :key="signer.email"
-                class="flex items-center justify-between gap-3 text-sm"
-              >
-                <span class="flex min-w-0 flex-col">
-                  <span class="truncate font-semi-bold">{{ signer.name || signer.email }}</span>
-                  <span class="truncate text-xs text-light-400">
-                    {{
-                      signerCaption(
-                        signer,
-                        signers[index - 1],
-                        signer.email === session?.signerEmail,
-                      )
-                    }}
-                  </span>
-                </span>
-              </li>
-            </ul>
-          </div>
-          <p v-if="myFields.length > 0" class="text-xs text-light-400">
-            Your signing spots are highlighted in the document. Click one to sign.
-          </p>
+        <template #rail-top>
+          <BrandMark />
+        </template>
+        <template #overlay>
           <div
-            class="mt-auto flex items-center justify-between gap-3 rounded-xl border border-dark-600 bg-dark-500 p-3"
+            class="flex items-center gap-4 rounded-xl border border-dark-600 bg-dark-500 py-3 pr-3 pl-5 whitespace-nowrap shadow-toolbar"
           >
-            <span class="text-sm text-light-500">Ready to sign</span>
-            <UiButton @click="dialogOpen = true">Sign document</UiButton>
+            <span class="text-sm" role="status">
+              {{
+                currentMark
+                  ? `Field ${fieldIndex + 1} of ${marks.length} · ${fieldKind(currentMark.type)}`
+                  : 'Ready to sign'
+              }}
+            </span>
+            <UiButton v-if="hasNextField" @click="nextField">Next field</UiButton>
+            <UiButton v-else @click="dialogOpen = true">Sign document</UiButton>
           </div>
-        </aside>
-      </div>
-
-      <section
-        v-else-if="(state === 'signed' || state === 'already') && detail"
-        class="flex w-full max-w-140 flex-col gap-4 rounded-2xl border border-dark-600 bg-dark-500 p-8"
+        </template>
+      </PreviewPanel>
+      <aside
+        class="flex w-110 shrink-0 flex-col gap-5 overflow-y-auto border-l border-dark-600 px-6 py-6"
+        aria-label="Signing details"
       >
-        <p class="font-mono text-xs tracking-widest text-light-400 uppercase">
-          {{ state === 'signed' ? 'Signed' : 'Already signed' }}
+        <p class="text-xs text-light-500">Signing as {{ meName }}</p>
+        <div class="flex items-start justify-between gap-3">
+          <h1 class="min-w-0 text-lg font-semi-bold break-words">{{ detail.name }}</h1>
+          <span
+            class="flex h-7 shrink-0 items-center rounded-full border border-dark-600 bg-dark-500 px-3 text-sm font-semi-bold"
+          >
+            Awaiting you
+          </span>
+        </div>
+        <p v-if="template?.description" class="text-sm text-light-500">
+          {{ template.description }}
         </p>
-        <h1 class="text-2xl font-bold">
-          {{
-            state === 'signed' ? `Thank you, ${meName.split(' ')[0]}` : 'You have already signed'
-          }}
-        </h1>
-        <p class="text-light-500">
-          {{
-            state === 'signed'
-              ? 'Your signature is recorded. Everyone receives the fully signed copy once the last signer is done.'
-              : 'Your signature on this document was recorded. There is nothing more to do.'
-          }}
+        <p class="flex items-center gap-2 text-xs font-semi-bold text-light-500">
+          <IconPdf class="size-5 shrink-0" aria-hidden="true" />
+          {{ documentMeta(detail, pages) }}
         </p>
-        <dl class="flex flex-col gap-3 rounded-lg bg-overlay p-4 text-sm">
-          <div v-if="signedOn">
-            <dt class="text-xs text-light-400">Signed on</dt>
-            <dd>{{ signedOn }}</dd>
-          </div>
-          <div>
-            <dt class="text-xs text-light-400">Waiting on</dt>
-            <dd>{{ waitingLabel(waiting) }}</dd>
-          </div>
-          <div v-if="detail.updatedAt">
-            <dt class="text-xs text-light-400">Last updated</dt>
-            <dd>{{ formatDay(detail.updatedAt) }}</dd>
-          </div>
-        </dl>
-        <UiButton @click="downloadSigned">Download signed copy</UiButton>
-        <p v-if="failure" class="text-xs text-alert-400" role="alert">{{ failure }}</p>
-      </section>
-    </main>
+        <SignerProgress :signers="signers" :next-index="positionOf(session?.signerEmail) - 1" />
+      </aside>
+    </div>
+
+    <template v-else>
+      <header class="flex items-center justify-between px-8 py-6">
+        <BrandMark />
+        <span v-if="meName" class="text-sm text-light-600">Signing as {{ meName }}</span>
+      </header>
+
+      <main class="flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-6">
+        <div class="my-auto flex w-full max-w-140 flex-col py-6">
+          <p v-if="state === 'loading'" class="text-center text-sm text-light-500" role="status">
+            Opening your signing link…
+          </p>
+
+          <SigningCard
+            v-else-if="state === 'invalid'"
+            eyebrow="Link unavailable"
+            title="This signing link doesn't work"
+          >
+            <template #text>
+              For security, signing links stop working after they expire. Ask the sender to send you
+              a fresh one.
+            </template>
+          </SigningCard>
+
+          <SigningCard
+            v-else-if="state === 'waiting' && detail"
+            eyebrow="Waiting"
+            title="It's not your turn yet"
+            :facts="[
+              {
+                label: 'Currently with',
+                value: `${ahead?.name || ahead?.email} · signer ${positionOf(ahead?.email)} of ${signers.length}`,
+              },
+              {
+                label: 'Your position',
+                value: `Signer ${positionOf(session?.signerEmail)} of ${signers.length}`,
+              },
+            ]"
+          >
+            <template #text>
+              This document is signed in order. Open this link again once the previous signer has
+              finished.
+            </template>
+          </SigningCard>
+
+          <SigningCard
+            v-else-if="state === 'landing' && detail"
+            eyebrow="Signature requested"
+            title="Your signature is needed"
+            :facts="[
+              projectName
+                ? { label: 'Project', value: projectLine }
+                : { label: 'Document', value: detail.name },
+              { label: 'From', value: sender },
+            ]"
+          >
+            <template #text>
+              {{ sender }} has sent you {{ detail.name }}. Review the document, {{ placesText }}.
+            </template>
+            <UiButton @click="state = 'signing'">Review and sign</UiButton>
+          </SigningCard>
+
+          <SigningCard
+            v-else-if="state === 'signed' && detail"
+            eyebrow="Signed"
+            :title="`Thank you, ${meName.split(' ')[0]}`"
+            :facts="[
+              { label: 'Signed on', value: signedOn },
+              { label: 'Waiting on', value: waitingLabel(waiting) },
+            ]"
+          >
+            <template #text>Your signature is recorded. You can download your copy now.</template>
+            <UiButton @click="downloadSigned">Download signed copy</UiButton>
+          </SigningCard>
+
+          <SigningCard
+            v-else-if="state === 'already' && detail"
+            eyebrow="Already signed"
+            title="You have already signed"
+            :facts="[
+              signedOn
+                ? { label: 'Signed on', value: signedOn }
+                : { label: 'Last updated', value: formatDay(detail.updatedAt) },
+              {
+                label: 'Status',
+                value:
+                  waiting === 0 ? 'Everyone has signed' : `Waiting on ${waitingLabel(waiting)}`,
+              },
+            ]"
+          >
+            <template #text>
+              Your signature on this document was recorded. There is nothing more to do.
+            </template>
+            <UiButton @click="downloadSigned">Download signed copy</UiButton>
+          </SigningCard>
+
+          <p
+            v-if="failure && signStage === 'idle'"
+            class="mt-3 text-xs text-alert-400"
+            role="alert"
+          >
+            {{ failure }}
+          </p>
+        </div>
+      </main>
+
+      <footer class="flex min-h-16 items-center justify-center px-6 text-xs text-light-500">
+        <p v-if="state === 'landing'">
+          This link is private to {{ session?.signerEmail
+          }}{{ expiresOn ? ` and expires on ${expiresOn}` : '' }}.
+        </p>
+        <p v-else-if="state === 'waiting' || state === 'signed'">You can close this page safely.</p>
+        <p v-else-if="state === 'already' && meName">Signing as {{ meName }}</p>
+      </footer>
+    </template>
 
     <AdoptSignatureDialog
       :open="dialogOpen"
@@ -293,14 +381,17 @@ async function downloadSigned() {
       :busy="busy"
       :error="failure"
       @close="dialogOpen = false"
-      @adopt="adopt"
+      @adopt="sign($event, null)"
+      @usb="chooseToken"
     />
+    <UsbTokenDialog :open="usbOpen" @close="usbOpen = false" @sign="sign(lastFields, $event)" />
     <SigningStatusDialog
       :state="signStage"
       :step="signStep"
       :error="failure"
+      :usb="tokenCertificate !== null"
       @close="signStage = 'idle'"
-      @retry="adopt(lastFields)"
+      @retry="sign(lastFields, tokenCertificate)"
     />
   </div>
 </template>

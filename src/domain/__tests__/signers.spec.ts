@@ -7,6 +7,7 @@ import {
   parseSigningLink,
   signersFormSchema,
   signingLink,
+  linkExpiry,
 } from '../signers'
 
 describe('signers', () => {
@@ -57,5 +58,12 @@ describe('signers', () => {
       signersFormSchema.safeParse({ ...good, signers: [{ name: '', email: 'nope', role: '' }] })
         .success,
     ).toBe(false)
+  })
+
+  it('reads when a signing link expires', () => {
+    const token = `h.${btoa(JSON.stringify({ exp: 1_800_000_000 })).replace(/=+$/, '')}.s`
+    expect(linkExpiry(token)?.toISOString()).toBe('2027-01-15T08:00:00.000Z')
+    expect(linkExpiry('not-a-token')).toBeNull()
+    expect(linkExpiry(`h.${btoa('{}')}.s`)).toBeNull()
   })
 })

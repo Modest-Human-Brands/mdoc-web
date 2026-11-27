@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, useTemplateRef } from 'vue'
+import IconChevronDown from '~icons/lucide/chevron-down'
+import { computed, onMounted, ref } from 'vue'
 
 import { decorApi, resolveApiUrl, type DecorSummary } from '@/api'
 import { errorMessage } from '@/composables/useTemplates'
-import { recentDecor, rememberDecor } from '@/composables/useRecentDecor'
-import { decorKind } from '@/domain/decor'
-import { isHttpsUrl } from '@/domain/url'
+import { recentDecor } from '@/composables/useRecentDecor'
+import { decorKind, describeDecor } from '@/domain/decor'
+
+import DecorDialog from './DecorDialog.vue'
 
 const model = defineModel<string>({ default: '' })
 
@@ -30,19 +32,24 @@ const props = defineProps<{
   error?: string
 }>()
 
-const MAX_BYTES = 2 * 1024 * 1024
-
 const builtins = ref<DecorSummary[]>([])
-const uploading = ref(false)
 const problem = ref<string | null>(null)
-const urlDraft = ref(decorKind(model.value) === 'url' ? model.value : '')
-const fileInput = useTemplateRef<HTMLInputElement>('fileInput')
+const open = ref(false)
 
-const showBuiltins = computed(() => props.widget === 'decor')
-const current = computed(() => (decorKind(model.value) === 'none' ? 'none' : model.value.trim()))
+const kind = computed(() => decorKind(model.value))
+const builtin = computed(() => builtins.value.find((decor) => decor.id === model.value.trim()))
+const uploaded = computed(() => recentDecor.value.find((item) => item.id === model.value.trim()))
+const preview = computed(() => {
+  const url = builtin.value?.thumbUrl ?? uploaded.value?.url
+  return url ? resolveApiUrl(url) : ''
+})
+const summary = computed(() => {
+  if (kind.value === 'none') return 'None'
+  return builtin.value?.label ?? describeDecor(model.value)
+})
 
 onMounted(async () => {
-  if (!showBuiltins.value) return
+  if (props.widget !== 'decor') return
   try {
     builtins.value = await loadBuiltins(props.decorSlot)
   } catch (error) {
@@ -50,56 +57,9 @@ onMounted(async () => {
   }
 })
 
-function choose(id: string) {
-  problem.value = null
-  model.value = id
-}
-
-async function onFile(event: Event) {
-  const input = event.target as HTMLInputElement
-  const file = input.files?.[0]
-  input.value = ''
-  if (!file) return
-  if (file.size > MAX_BYTES) {
-    problem.value = 'Image is larger than 2 MB'
-    return
-  }
-  uploading.value = true
-  problem.value = null
-  try {
-    const uploaded = await decorApi.upload(file)
-    rememberDecor({ id: uploaded.id, url: uploaded.url })
-    model.value = uploaded.id
-  } catch (error) {
-    problem.value = errorMessage(error)
-  } finally {
-    uploading.value = false
-  }
-}
-
-function applyUrl() {
-  const url = urlDraft.value.trim()
-  if (url === '') {
-    choose('none')
-    return
-  }
-  if (!isHttpsUrl(url)) {
-    problem.value = 'Use an https:// link'
-    return
-  }
-  choose(url)
-}
-
-const tile =
-  'flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-md border text-xs font-semi-bold outline-none focus-visible:shadow-focus-ring'
-
-function tileClass(id: string) {
-  return [
-    tile,
-    current.value === id
-      ? 'border-accent-400 bg-dark-600 text-white'
-      : 'border-dark-600 bg-dark-500 text-light-400 hover:text-white',
-  ]
+function use(value: string) {
+  model.value = value
+  open.value = false
 }
 </script>
 
@@ -110,83 +70,28 @@ function tileClass(id: string) {
       <span v-if="hint" class="text-xs font-regular text-light-400">{{ hint }}</span>
     </span>
 
-    <div class="flex flex-wrap gap-2" role="radiogroup" :aria-label="label">
-      <button
-        type="button"
-        role="radio"
-        :aria-checked="current === 'none'"
-        :class="tileClass('none')"
-        @click="choose('none')"
-      >
-        None
-      </button>
-      <button
-        v-for="decor in builtins"
-        :key="decor.id"
-        type="button"
-        role="radio"
-        :aria-checked="current === decor.id"
-        :aria-label="decor.label"
-        :title="decor.label"
-        :class="tileClass(decor.id)"
-        @click="choose(decor.id)"
-      >
-        <img
-          :src="resolveApiUrl(decor.thumbUrl)"
-          :alt="decor.label"
-          class="size-full object-cover"
-        />
-      </button>
-      <button
-        v-for="upload in recentDecor"
-        :key="upload.id"
-        type="button"
-        role="radio"
-        :aria-checked="current === upload.id"
-        aria-label="Recent upload"
-        title="Recent upload"
-        :class="tileClass(upload.id)"
-        @click="choose(upload.id)"
-      >
-        <img :src="resolveApiUrl(upload.url)" alt="Recent upload" class="size-full object-cover" />
-      </button>
-    </div>
+    <button
+      type="button"
+      class="flex h-9.5 items-center gap-2 rounded-md border border-dark-600 bg-dark-500 px-3 text-left text-sm text-white outline-none hover:border-light-400 focus-visible:shadow-focus-ring"
+      :aria-label="`${label}: ${summary}`"
+      aria-haspopup="dialog"
+      @click="open = true"
+    >
+      <img v-if="preview" :src="preview" alt="" class="size-6 shrink-0 rounded-sm object-cover" />
+      <span class="min-w-0 flex-1 truncate">{{ summary }}</span>
+      <IconChevronDown class="size-3.5 shrink-0 text-light-400" aria-hidden="true" />
+    </button>
 
-    <div class="flex items-center gap-2">
-      <input
-        ref="fileInput"
-        type="file"
-        accept="image/png,image/jpeg,image/webp,image/svg+xml"
-        class="hidden"
-        @change="onFile"
-      />
-      <button
-        type="button"
-        class="rounded-md border border-dark-600 bg-dark-500 px-3 py-1.5 text-sm font-semi-bold text-white outline-none hover:bg-dark-600 focus-visible:shadow-focus-ring disabled:opacity-50"
-        :disabled="uploading"
-        @click="fileInput?.click()"
-      >
-        {{ uploading ? 'Uploading…' : 'Upload' }}
-      </button>
-      <input
-        v-model="urlDraft"
-        type="url"
-        placeholder="From URL (https://…)"
-        :aria-label="`${label} image URL`"
-        class="h-9 min-w-0 flex-1 rounded-md border border-dark-600 bg-dark-500 px-3 text-sm text-white outline-none placeholder:text-light-400 focus:border-accent-400"
-        @keydown.enter.prevent="applyUrl"
-      />
-      <button
-        type="button"
-        class="text-sm font-semi-bold text-accent-400 outline-none hover:text-accent-500 focus-visible:shadow-focus-ring"
-        @click="applyUrl"
-      >
-        Use
-      </button>
-    </div>
+    <p v-if="error" class="text-xs text-alert-400" role="alert">{{ error }}</p>
 
-    <p v-if="problem || error" class="text-xs text-alert-400" role="alert">
-      {{ problem ?? error }}
-    </p>
+    <DecorDialog
+      :open="open"
+      :title="widget === 'decor' ? 'Choose decor' : 'Choose image'"
+      :value="model"
+      :builtins="builtins"
+      :builtin-problem="problem"
+      @close="open = false"
+      @use="use"
+    />
   </div>
 </template>

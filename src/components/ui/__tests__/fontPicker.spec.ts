@@ -1,5 +1,6 @@
 import { mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test'
+import { nextTick } from 'vue'
 
 import UiFontPicker from '../UiFontPicker.vue'
 
@@ -8,7 +9,16 @@ const options = [
   { family: 'Open Sans', name: 'OpenSans' },
 ]
 
-beforeEach(() => vi.useFakeTimers())
+beforeEach(() => {
+  vi.useFakeTimers()
+  // jsdom has no modal dialogs.
+  HTMLDialogElement.prototype.showModal = function (this: HTMLDialogElement) {
+    this.open = true
+  }
+  HTMLDialogElement.prototype.close = function (this: HTMLDialogElement) {
+    this.open = false
+  }
+})
 afterEach(() => vi.useRealTimers())
 
 function mountPicker(props: Record<string, unknown> = {}) {
@@ -17,12 +27,19 @@ function mountPicker(props: Record<string, unknown> = {}) {
   })
 }
 
+async function openChooser(props: Record<string, unknown> = {}) {
+  const wrapper = mountPicker(props)
+  await wrapper.get('button[aria-haspopup="dialog"]').trigger('click')
+  return wrapper
+}
+
+const button = (wrapper: ReturnType<typeof mountPicker>, text: string) =>
+  wrapper.findAll('button').find((item) => item.text() === text)!
+
 describe('UiFontPicker', () => {
   it('loads the featured list when opened and debounces typed searches', async () => {
-    const wrapper = mountPicker()
+    const wrapper = await openChooser()
     const input = wrapper.get('input')
-
-    await input.trigger('focus')
     expect(wrapper.emitted('search')).toEqual([['']])
 
     await input.setValue('o')
@@ -36,10 +53,9 @@ describe('UiFontPicker', () => {
   })
 
   it('moves with the arrow keys and picks with Enter', async () => {
-    const wrapper = mountPicker()
+    const wrapper = await openChooser()
     const input = wrapper.get('input')
 
-    await input.trigger('focus')
     await input.trigger('keydown', { key: 'ArrowDown' })
     await input.trigger('keydown', { key: 'Enter' })
 
@@ -47,35 +63,47 @@ describe('UiFontPicker', () => {
     expect(wrapper.find('[role="listbox"]').exists()).toBe(false)
   })
 
-  it('closes on Escape without changing the value', async () => {
-    const wrapper = mountPicker()
-    const input = wrapper.get('input')
+  it('changes the font only once it is confirmed', async () => {
+    const wrapper = await openChooser()
 
-    await input.trigger('focus')
-    await input.trigger('keydown', { key: 'Escape' })
+    await wrapper.findAll('[role="option"]')[1]!.trigger('click')
+    expect(wrapper.text()).toContain('Open Sans · The quick brown fox')
+    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+
+    await button(wrapper, 'Use font').trigger('click')
+    expect(wrapper.emitted('update:modelValue')?.[0]).toEqual(['Open Sans'])
+  })
+
+  it('keeps the value when cancelled', async () => {
+    const wrapper = await openChooser()
+
+    await wrapper.findAll('[role="option"]')[1]!.trigger('click')
+    await button(wrapper, 'Cancel').trigger('click')
 
     expect(wrapper.find('[role="listbox"]').exists()).toBe(false)
     expect(wrapper.emitted('update:modelValue')).toBeUndefined()
   })
 
   it('shows loading and empty states', async () => {
-    const loading = mountPicker({ loading: true, options: [] })
-    await loading.get('input').trigger('focus')
+    const loading = await openChooser({ loading: true, options: [] })
     expect(loading.text()).toContain('Searching')
 
-    const empty = mountPicker({ options: [] })
-    await empty.get('input').trigger('focus')
+    const empty = await openChooser({ options: [] })
     expect(empty.text()).toContain('No fonts found')
   })
 
-  it('keeps a saved font as the current value and explains the fallback', () => {
+  it('offers the fallback when the saved font is unknown', async () => {
     const wrapper = mountPicker({ modelValue: 'Georgia', unknown: true })
+    await nextTick()
 
-    expect(wrapper.get('input').element.value).toBe('Georgia')
-    expect(wrapper.text()).toContain('will use Exo 2')
+    expect(wrapper.text()).toContain('Georgia')
+    expect(wrapper.text()).toContain('Font unavailable')
+    await button(wrapper, 'Use fallback').trigger('click')
+    expect(wrapper.emitted('update:modelValue')?.[0]).toEqual(['Exo 2'])
   })
 
-  it('says so when the search is unavailable', () => {
-    expect(mountPicker({ offline: true }).text()).toContain('Font search is unavailable')
+  it('says so when the search is unavailable', async () => {
+    const wrapper = await openChooser({ offline: true })
+    expect(wrapper.text()).toContain('Font search is unavailable')
   })
 })

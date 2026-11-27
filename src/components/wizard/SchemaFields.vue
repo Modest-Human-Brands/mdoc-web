@@ -6,6 +6,7 @@ import type { JsonSchema } from '@/api'
 import DecorPicker from '@/components/wizard/DecorPicker.vue'
 import UiAddButton from '@/components/ui/UiAddButton.vue'
 import ClientPicker from '@/components/wizard/ClientPicker.vue'
+import QuotationPicker from '@/components/wizard/QuotationPicker.vue'
 import UiSegmentedControl from '@/components/ui/UiSegmentedControl.vue'
 import UiSelect from '@/components/ui/UiSelect.vue'
 import UiTextField from '@/components/ui/UiTextField.vue'
@@ -19,6 +20,7 @@ import {
   orderedProperties,
   singularLabel,
 } from '@/domain/schema'
+import { isQuotationField, type QuotationReference } from '@/domain/quotation'
 import { isTermsSchema } from '@/domain/terms'
 import { findClient } from '@/composables/useClients'
 import { coveredKeys } from '@/domain/clients'
@@ -145,6 +147,11 @@ function hiddenFor(key: string, schema: JsonSchema): string[] {
   return coveredKeys(findClient(wizard.clientId), Object.keys(schema.properties ?? {}))
 }
 
+function pickQuotation(reference: QuotationReference) {
+  if (reference.date) set([...base.value, 'quoteDate'], reference.date)
+  wizard.flushPreview()
+}
+
 function noun(schema: JsonSchema, key: string): string {
   return singularLabel(schema.title ?? key)
 }
@@ -159,8 +166,20 @@ function noun(schema: JsonSchema, key: string): string {
       <div v-if="block.kind === 'fields'" class="grid grid-cols-2 gap-3">
         <template v-for="[key, child] in block.entries" :key="key">
           <NotField v-slot="{ errors, events }" :path="dotted([...base, key])">
+            <QuotationPicker
+              v-if="isQuotationField(wizard.templateId, [...base, key])"
+              :model-value="text([...base, key])"
+              :error="messageFor(errors, [...base, key])"
+              @update:model-value="
+                (v) => {
+                  set([...base, key], v ?? '')
+                  events.onChange()
+                }
+              "
+              @picked="pickQuotation"
+            />
             <DecorPicker
-              v-if="child['x-widget']"
+              v-else-if="child['x-widget']"
               :model-value="text([...base, key])"
               :label="label(key, child)"
               :widget="child['x-widget']"
