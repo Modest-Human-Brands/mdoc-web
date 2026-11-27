@@ -152,6 +152,11 @@ function pickQuotation(reference: QuotationReference) {
   wizard.flushPreview()
 }
 
+function clearQuotation() {
+  set([...base.value, 'quoteDate'], '')
+  wizard.flushPreview()
+}
+
 function noun(schema: JsonSchema, key: string): string {
   return singularLabel(schema.title ?? key)
 }
@@ -177,6 +182,7 @@ function noun(schema: JsonSchema, key: string): string {
                 }
               "
               @picked="pickQuotation"
+              @cleared="clearQuotation"
             />
             <DecorPicker
               v-else-if="child['x-widget']"

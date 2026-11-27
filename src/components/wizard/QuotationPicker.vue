@@ -15,11 +15,12 @@ import {
 
 const CURRENT = '__current'
 const MANUAL = '__manual'
+const NONE = '__none'
 const LIMIT = 100
 
 const model = defineModel<string>({ default: '' })
 defineProps<{ error?: string }>()
-const emit = defineEmits<{ picked: [reference: QuotationReference] }>()
+const emit = defineEmits<{ picked: [reference: QuotationReference]; cleared: [] }>()
 
 const id = useId()
 const quotations = ref<DocumentListItem[]>([])
@@ -59,6 +60,12 @@ async function choose(event: Event) {
   pickError.value = null
   if (value === MANUAL) {
     manual.value = true
+    return
+  }
+  if (value === NONE) {
+    busy.value = false
+    model.value = ''
+    emit('cleared')
     return
   }
   busy.value = true
@@ -117,6 +124,7 @@ async function choose(event: Event) {
         <option v-for="item in quotations" :key="item.id" :value="item.id" class="bg-dark-500">
           {{ item.name }}{{ item.createdAt ? ` · ${formatDay(item.createdAt)}` : '' }}
         </option>
+        <option :value="NONE" class="bg-dark-500">No quotation</option>
         <option :value="MANUAL" class="bg-dark-500">Enter the number myself</option>
       </select>
       <IconChevronDown
