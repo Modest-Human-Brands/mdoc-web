@@ -9,8 +9,8 @@ defineProps<{
 <template>
   <section class="flex w-full flex-col gap-4 rounded-2xl border border-dark-600 bg-dark-500 p-8">
     <p class="font-mono text-xs tracking-widest text-light-500 uppercase">{{ eyebrow }}</p>
-    <h1 class="text-xl font-semi-bold">{{ title }}</h1>
-    <p class="text-base text-light-600"><slot name="text" /></p>
+    <h1 class="text-xl font-semi-bold break-words">{{ title }}</h1>
+    <p class="text-base break-words text-light-600"><slot name="text" /></p>
     <dl
       v-if="facts?.some((fact) => fact.value)"
       class="flex flex-col gap-2 rounded-xl border border-dark-600 bg-overlay p-4"

@@ -191,7 +191,9 @@ async function changeStatus(next: (typeof EDITABLE_STATUSES)[number]) {
           {{ meta }}
         </p>
         <p v-if="actionError" class="text-xs text-alert-400" role="alert">{{ actionError }}</p>
-        <p v-if="linkNote" class="text-xs text-light-500" role="status">{{ linkNote }}</p>
+        <p v-if="linkNote" class="text-xs break-words text-light-500" role="status">
+          {{ linkNote }}
+        </p>
 
         <SignerProgress
           v-if="signers.length > 0"

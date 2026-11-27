@@ -75,7 +75,7 @@ async function cancel() {
 
       <div class="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto pr-1 scrollbar-none">
         <div class="flex flex-col gap-1">
-          <h2 class="text-xl font-bold tracking-tight text-white">{{ title }}</h2>
+          <h2 class="text-xl font-bold tracking-tight break-words text-white">{{ title }}</h2>
           <p class="text-sm text-light-400">{{ subtitle }}</p>
         </div>
         <slot />

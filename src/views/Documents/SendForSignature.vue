@@ -223,7 +223,7 @@ async function send() {
           Link for {{ sentTo.email.trim() }} · expires {{ formatDay(sent.expiresAt) }}
         </p>
         <div class="flex flex-col gap-2">
-          <p class="text-xs text-light-500">Signing link · {{ sentTo.name.trim() }}</p>
+          <p class="text-xs break-words text-light-500">Signing link · {{ sentTo.name.trim() }}</p>
           <div
             class="flex items-center gap-2 rounded-md border border-dark-600 bg-dark-500 py-1 pr-1 pl-3"
           >
